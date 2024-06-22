@@ -1,0 +1,5 @@
+DATABASE_URI_KEY = "FASTADMIN_DB_URI"
+DEFAULT_TITLE_PAGE = "DEFAULT_TITLE_PAGE"
+API_ROOT_URL = "api_root_url"
+API_PATH_MODE = "api_path_mode"
+API_PATH_STRIP = "api_path_strip"

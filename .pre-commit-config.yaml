@@ -1,0 +1,17 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+        exclude: alembic/versions/
+    -   id: end-of-file-fixer
+        exclude: alembic/versions/
+    -   id: check-yaml
+        exclude: alembic/versions/
+-   repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.5
+    hooks:
+    -   id: ruff
+        exclude: alembic/versions/
+    -   id: ruff-format
+        exclude: alembic/versions/

@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "fastadmin"
+version = "0.1.0"
+description = ""
+authors = ["Valerii <valera.dchn@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+sqlalchemy = "^2.0.31"
+fastui = "^0.6.0"
+fastapi = {extras = ["all"], version = "^0.111.0"}
+pre-commit = "^3.7.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
