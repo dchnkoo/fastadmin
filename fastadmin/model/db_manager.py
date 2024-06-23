@@ -1,17 +1,15 @@
 from fastadmin.utils.database.asyn import _AsyncDB, _DB, Result
+from fastadmin.conf import FastAdminConfig
 import fastadmin.utils.types as _tb
-import fastadmin.constants as _const
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.sql import _typing as _sa_t
 import sqlalchemy as _sa
 
 import typing as _t
-import os as _os
 
 
-_DB_URL = _os.environ.get(_const.DATABASE_URI_KEY)
-_ENGINE = _AsyncDB.create_engine(url=_DB_URL)
+_ENGINE = _AsyncDB.create_engine(url=FastAdminConfig.sql_db_uri)
 
 
 class ModelDB(_AsyncDB):
@@ -22,6 +20,8 @@ class ModelDB(_AsyncDB):
         info: _t.Optional[_sa_t._InfoType] = None,
         **kw,
     ) -> async_sessionmaker[AsyncSession]:
+        global _ENGINE
+
         return async_sessionmaker(
             bind=_ENGINE,
             class_=AsyncSession,

@@ -6,3 +6,5 @@ Table: _t.TypeAlias = object
 TableColumns: _t.TypeAlias = tuple[sa.Column]
 
 TableStrName: _t.TypeAlias = str
+
+URI_WITH_ASYNC_DRIVER: _t.TypeAlias = str

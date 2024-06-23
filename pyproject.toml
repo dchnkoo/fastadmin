@@ -11,6 +11,7 @@ sqlalchemy = "^2.0.31"
 fastui = "^0.6.0"
 fastapi = {extras = ["all"], version = "^0.111.0"}
 pre-commit = "^3.7.1"
+asyncpg = "^0.29.0"
 
 
 [build-system]

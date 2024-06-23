@@ -104,7 +104,9 @@ class _AsyncDB:
 
     @classmethod
     async def exists(cls: _t.Type[_DB], table: sa.Table, *args, session: AsyncSession):
-        result: Result = await cls.get(session=session, table=table, where=args)
+        result: Result = await cls.get(
+            session=session, table=table, where=args, all_=False
+        )
 
         return bool(result.data)
 

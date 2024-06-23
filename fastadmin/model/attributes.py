@@ -260,5 +260,25 @@ class ModelAttributes:
         repr: p.BaseModel = MyPydanticModel
 
     ```
+    """
 
+    can_add: bool = True
+    """
+    If the attribute is True, then it will be possible to add data from the admin panel to the table.
+
+    default is True.
+    """
+
+    can_delete: bool = True
+    """
+    If the attribute is True, then it will be possible to delete data from the admin panel in the table.
+
+    default is True.
+    """
+
+    can_edit: bool = True
+    """
+    If the attribute is True, then it will be possible to edit data from the admin panel in the table.
+
+    default is True.
     """
