@@ -21,7 +21,7 @@ class Result(p.BaseModel):
     sum: _t.Optional[_t.Union[float, tuple[float]]] = None
     avg: _t.Optional[_t.Union[float, tuple[float]]] = None
     min: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
-    max: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = (None,)
+    max: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
 
 
 _DB = _t.TypeVar("_DB", bound="_AsyncDB")
@@ -154,7 +154,7 @@ class _AsyncDB:
         if sum is not None:
             sum = (
                 await cls.use_sqlalchemy_functions(
-                    (sa.func.sum(column) for column in sum),
+                    tuple(sa.func.sum(column) for column in sum),
                     session=session,
                     where=where,
                 )
@@ -167,7 +167,7 @@ class _AsyncDB:
         if avg is not None:
             avg = (
                 await cls.use_sqlalchemy_functions(
-                    (sa.func.avg(column) for column in avg),
+                    tuple(sa.func.avg(column) for column in avg),
                     session=session,
                     where=where,
                 )
@@ -180,7 +180,7 @@ class _AsyncDB:
         if min is not None:
             min = (
                 await cls.use_sqlalchemy_functions(
-                    (sa.func.min(column) for column in min),
+                    tuple(sa.func.min(column) for column in min),
                     session=session,
                     where=where,
                 )
@@ -193,7 +193,7 @@ class _AsyncDB:
         if max is not None:
             max = (
                 await cls.use_sqlalchemy_functions(
-                    (sa.func.max(column) for column in max),
+                    tuple(sa.func.max(column) for column in max),
                     session=session,
                     where=where,
                 )

@@ -1,4 +1,4 @@
-from fastadmin.metadata import FastAdminMeta
+from fastadmin.metadata import FastAdminMeta, MetaInfo
 from fastadmin.conf import FastAdminConfig
 from fastadmin.ui import urls
 
@@ -17,7 +17,8 @@ ui = fa.APIRouter(prefix=FastAdminConfig.api_root_url)
 @ui.get(urls.HOME, response_model=FastUI, response_model_exclude_none=True)
 async def home_page(
     table: str,
-    model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta.__get_table___),
+    model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
+    metainfo: MetaInfo = fa.Depends(FastAdminMeta._get_metainfo),
     field: _t.Optional[str] = None,
     search: _t.Optional[str] = None,
     page: int = 1,
@@ -41,13 +42,13 @@ async def home_page(
         return [
             c.Error(
                 title="Error",
-                description=exc,
+                description=str(exc),
                 status_code=fa.status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         ]
 
 
-main = fa.APIRouter()
+main = fa.FastAPI(include_in_schema=False)
 main.include_router(ui)
 
 

@@ -9,9 +9,6 @@ import sqlalchemy as _sa
 import typing as _t
 
 
-_ENGINE = _AsyncDB.create_engine(url=FastAdminConfig.sql_db_uri)
-
-
 class ModelDB(_AsyncDB):
     @classmethod
     def get_session(
@@ -23,7 +20,7 @@ class ModelDB(_AsyncDB):
         global _ENGINE
 
         return async_sessionmaker(
-            bind=_ENGINE,
+            bind=_AsyncDB.create_engine(url=FastAdminConfig.sql_db_uri),
             class_=AsyncSession,
             expire_on_commit=expire_on_commit,
             info=info**kw,
@@ -81,9 +78,7 @@ class ModelDB(_AsyncDB):
         )
 
     @classmethod
-    async def insert(
-        cls: _t.Type[_DB], session: AsyncSession, **kwargs
-    ) -> _t.Type[_DB]:
+    async def insert(cls: _t.Type[_DB], session: AsyncSession, **kwargs) -> _DB:
         return await super().insert(table=cls, session=session, **kwargs)
 
     @classmethod

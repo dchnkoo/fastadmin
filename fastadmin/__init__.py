@@ -25,7 +25,4 @@ class FastAdmin(fa.FastAPI):
 
         from fastadmin.ui.main import main
 
-        self.include_router(main)
-
-
-app = FastAdmin(sql_db_uri="postgresql+asyncpg://test:test@localhost:5432/test")
+        self.mount(path="", app=main)
