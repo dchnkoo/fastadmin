@@ -4,6 +4,7 @@ import pydantic as p
 import typing as _t
 
 from fastadmin.conf import FastAdminConfig
+from fastadmin.utils import types as _tb
 from fastadmin.ui import urls
 
 if _t.TYPE_CHECKING:
@@ -13,7 +14,6 @@ if _t.TYPE_CHECKING:
 exclude_fields: _t.TypeAlias = list[str]
 fields_options: _t.TypeAlias = dict[str, _t.Any]
 validators: _t.TypeAlias = dict[str, _t.Callable]
-base: _t.TypeAlias = p.BaseModel
 
 
 class SQLModel2Pydantic:
@@ -21,7 +21,7 @@ class SQLModel2Pydantic:
     def which_model(
         cls: type["FastAdminMeta"],
         model: type["FastAdminMeta"],
-        model_type: _t.Literal["form", "edit_form", "admin", "repr"] = "repr",
+        model_type: _tb.FastModels = "repr",
     ) -> p.BaseModel:
         config_dict: p.BaseModel | dict = getattr(model, model_type)
 
@@ -30,7 +30,7 @@ class SQLModel2Pydantic:
 
         exclude, fields, valids, base = cls._parse_config(config=config_dict)
 
-        metainfo = cls._get_metainfo(model.__tablename__)
+        metainfo = cls.__get_metainfo__(model.__tablename__)
 
         columns = cls._get_valid_columns(
             metainfo=metainfo, fields=fields, exclude=exclude
@@ -46,7 +46,7 @@ class SQLModel2Pydantic:
     @staticmethod
     def _parse_config(
         config: dict
-    ) -> tuple[exclude_fields, fields_options, validators, base]:
+    ) -> tuple[exclude_fields, fields_options, validators, p.BaseModel]:
         exclude = config.get("exclude", [])
         fields = config.get("fields", {})
         valids = config.get("validators", None)
@@ -112,8 +112,6 @@ class SQLModel2Pydantic:
             if options.foregin_key is not None:
                 url = (
                     FastAdminConfig.api_path_strip
-                    if FastAdminConfig.api_path_strip is not None
-                    else ""
                     + FastAdminConfig.api_root_url
                     + urls.SEARCH.format(table=options.foregin_key.table_name)
                 )

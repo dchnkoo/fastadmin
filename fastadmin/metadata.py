@@ -1,15 +1,22 @@
 from fastadmin.model.sqlmodel2pydantic import SQLModel2Pydantic
 from fastadmin.model.attributes import ModelAttributes
 from fastadmin.model.actions import ModelActions
-from fastadmin.model.db_manager import ModelDB
+from fastadmin.model.db_manager import ModelDB, Result
+
+from fastadmin.utils.descriptor.clas import classproperty
+import fastadmin.utils.types as _tb
 
 from fastadmin.interface.pages import FastAdminPages
 from fastadmin.conf import FastAdminConfig
-import fastadmin.utils.types as _tb
 
+from fastui import components as c, events as e
+
+import hashlib as _hash
+import fastapi as _fa
 import pydantic as p
 import typing as _t
 
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 import sqlalchemy as sa
 
@@ -21,19 +28,14 @@ class FastAdminMeta(
     SQLModel2Pydantic,
     ModelDB,
 ):
-    __metadata__: dict[str, "MetaInfo"] = {}
+    __admin_metadata__: dict[str, "MetaInfo"] = {}
 
-    def __init_subclass__(cls: type["DeclarativeBase"]) -> None:
-        if FastAdminConfig.sqlalchemy_metadata is None:
-            for base in cls.__bases__:
-                if FastAdminMeta._is_sqlalchemy_base(base):
-                    FastAdminConfig.sqlalchemy_metadata = base
-
+    def __init_subclass__(cls: type["DeclarativeBase"] | type["FastAdminMeta"]) -> None:
         super().__init_subclass__()
 
         table = cls.__table__
 
-        columns = FastAdminMeta._set_columns(table)
+        columns = FastAdminMeta.__meta_set_columns__(table)
 
         data = MetaInfo(
             table=cls,
@@ -43,16 +45,61 @@ class FastAdminMeta(
             foregin_columns={
                 k: v for k, v in columns.items() if v.foregin_key is not None
             },
+            unique_columns={
+                k: v
+                for k, v in columns.items()
+                if v.unique is not None and v.unique is True
+            },
             columns=columns,
+            permissions=FastAdminMeta._set_permissions(cls),
         )
 
-        FastAdminMeta.__metadata__[cls.__tablename__] = data
+        FastAdminMeta.__admin_metadata__[cls.__tablename__] = data
 
     @classmethod
-    def _set_columns(cls, table: "sa.Table") -> dict[str, "TableColumn"]:
+    def _get_admin(cls) -> type["FastAdminMeta"]:
+        return cls._get_table(FastAdminConfig.admin_table_name)
+
+    @classmethod
+    def _get_home_link(cls) -> str:
+        metainfo: MetaInfo = next(iter(cls.__admin_metadata__.values()))
+
+        from fastadmin.ui.urls import HOME
+
+        return FastAdminConfig.api_path_strip + HOME.format(
+            table=metainfo.table_db_name
+        )
+
+    @staticmethod
+    def _set_permissions(cls: type["FastAdminMeta"]):
+        perms = []
+
+        if cls.can_add:
+            perms.append("add:" + cls.__name__)
+
+        if cls.can_delete:
+            perms.append("delete:" + cls.__name__)
+
+        if cls.can_edit:
+            perms.append("edit:" + cls.__name__)
+
+        return perms
+
+    @classproperty
+    def _permissions(cls) -> list[str]:
+        perms = []
+
+        for perm_list in cls.__meta_values__:
+            for perm in perm_list.permissions:
+                perms.append(perm)
+
+        return perms
+
+    @classmethod
+    def __meta_set_columns__(cls, table: "sa.Table") -> dict[str, "TableColumn"]:
         columns = {}
 
-        for column in list(table.columns):
+        for column in table.columns:
             columns[column.name] = TableColumn(
                 name=column.name,
                 python_type=column.type.python_type,
@@ -85,29 +132,74 @@ class FastAdminMeta(
 
     @classmethod
     def _get_table(cls, table: _tb.TableStrName) -> type["FastAdminMeta"]:
-        return cls.__metadata__.get(table).table
+        return cls.__admin_metadata__.get(table).table
 
     @classmethod
-    def _get_metainfo(cls, table: _tb.TableStrName) -> "MetaInfo":
-        return cls.__metadata__.get(table)
+    def __get_metainfo__(cls, table: _tb.TableStrName) -> "MetaInfo":
+        return cls.__admin_metadata__.get(table)
+
+    @classproperty
+    def __meta_keys__(cls) -> tuple[str]:
+        return tuple(cls.__admin_metadata__.keys())
+
+    @classproperty
+    def __meta_values__(cls) -> tuple["MetaInfo"]:
+        return tuple(cls.__admin_metadata__.values())
 
     @classmethod
-    def _keys(cls) -> tuple[str]:
-        return tuple(cls.__metadata__.keys())
+    def __meta_items__(cls) -> list[tuple[str, "MetaInfo"]]:
+        return list(cls.__admin_metadata__.items())
 
     @classmethod
-    def _values(cls) -> tuple["MetaInfo"]:
-        return tuple(cls.__metadata__.values())
+    async def authefication(
+        cls, auth_credentials: type[p.BaseModel], session: AsyncSession
+    ):
+        email, password = (
+            auth_credentials.email,
+            _hash.sha256(
+                auth_credentials.password.get_secret_value().encode()
+            ).hexdigest(),
+        )
 
-    @classmethod
-    def _items(cls) -> list[tuple[str, "MetaInfo"]]:
-        return list(cls.__metadata__.items())
+        if (
+            await cls.exists(
+                cls.email == email,
+                cls.is_admin.is_(True),
+                session=session,
+            )
+            is False
+        ):
+            raise _fa.HTTPException(
+                status_code=_fa.status.HTTP_404_NOT_FOUND, detail="User doesn't exists."
+            )
 
-    @classmethod
-    def __repr__(cls) -> str:
-        if hasattr(cls, "__tablename__"):
-            return cls._get_metainfo(cls.__tablename__).__str__()
-        return super().__str__(cls)
+        user: Result = await cls.get(
+            session=session,
+            where=(cls.email == email, cls.password == password),
+            all_=False,
+            count=True,
+        )
+
+        print(user)
+
+        user = user.data
+
+        if user is None:
+            raise _fa.HTTPException(
+                status_code=_fa.status.HTTP_423_LOCKED, detail="Incorrect password."
+            )
+
+        response = _fa.responses.JSONResponse(
+            content=[
+                c.FireEvent(event=e.GoToEvent(url=cls._get_home_link())).model_dump()
+            ]
+        )
+
+        await FastAdminConfig.admin_middleware.set_cookies_to_reponse(
+            response=response, user=user
+        )
+
+        return response
 
 
 class ForeginKey(p.BaseModel):
@@ -132,4 +224,6 @@ class MetaInfo(p.BaseModel):
     table_db_name: str
     primary_columns: dict[str, TableColumn]
     foregin_columns: dict[str, TableColumn] = {}
+    unique_columns: dict[str, TableColumn] = {}
     columns: dict[str, TableColumn]
+    permissions: _t.List[str] = []

@@ -12,6 +12,8 @@ fastui = "^0.6.0"
 fastapi = {extras = ["all"], version = "^0.111.0"}
 pre-commit = "^3.7.1"
 asyncpg = "^0.29.0"
+pyjwt = "^2.8.0"
+alembic = "^1.13.2"
 
 
 [build-system]

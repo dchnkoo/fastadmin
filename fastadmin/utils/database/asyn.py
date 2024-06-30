@@ -13,17 +13,6 @@ import pydantic as p
 import typing as _t
 
 
-class Result(p.BaseModel):
-    data: _t.Optional[
-        _t.Union[_t.Type["_DB"], tuple[_t.Type["_DB"]], dict, tuple[dict]]
-    ]
-    count: _t.Optional[_t.Union[int, tuple[int]]] = None
-    sum: _t.Optional[_t.Union[float, tuple[float]]] = None
-    avg: _t.Optional[_t.Union[float, tuple[float]]] = None
-    min: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
-    max: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
-
-
 _DB = _t.TypeVar("_DB", bound="_AsyncDB")
 
 
@@ -80,7 +69,9 @@ class _AsyncDB:
         query = sa.select(func).select_from(cls)
 
         if where is not None:
-            query = query.where(sa.and_(*where if isinstance(where, tuple) else where))
+            query = query.where(
+                sa.and_(*where) if isinstance(where, tuple) else sa.and_(where)
+            )
 
         result = await cls.execute(session=session, query=query)
 
@@ -137,18 +128,24 @@ class _AsyncDB:
         distinct: bool = False,
         all_: bool = True,
         to_dict: bool = False,
-    ) -> Result:
-        query: sa.Select = sa.select(*table if isinstance(table, tuple) else table)
+    ) -> "Result":
+        query: sa.Select = (
+            sa.select(*table) if isinstance(table, tuple) else sa.select(table)
+        )
 
         if distinct:
             query = query.distinct()
 
         if where is not None:
-            query = query.where(sa.and_(*where if isinstance(where, tuple) else where))
+            query = query.where(
+                sa.and_(*where) if isinstance(where, tuple) else sa.and_(where)
+            )
 
         if count:
             count = await cls.use_sqlalchemy_function(
-                sa.func.count(where), session=session
+                sa.func.count(),
+                session=session,
+                where=where,
             )
 
         if sum is not None:
@@ -160,7 +157,7 @@ class _AsyncDB:
                 )
                 if isinstance(sum, tuple)
                 else await cls.use_sqlalchemy_function(
-                    sa.func.sum(sum, where), session=session
+                    sa.func.sum(sum), session=session, where=where
                 )
             )
 
@@ -216,7 +213,11 @@ class _AsyncDB:
             query = query.group_by(group_by)
 
         if having is not None:
-            query = query.having(*having if isinstance(having, tuple) else having)
+            query = (
+                query.having(*having)
+                if isinstance(having, tuple)
+                else query.having(having)
+            )
 
         result = await cls.execute(session=session, query=query)
 
@@ -268,7 +269,9 @@ class _AsyncDB:
         query = sa.update(table)
 
         if where is not None:
-            query = query.where(sa.and_(*where if isinstance(where, tuple) else where))
+            query = query.where(
+                sa.and_(*where) if isinstance(where, tuple) else sa.and_(where)
+            )
 
         query = query.values(**kwargs)
 
@@ -284,7 +287,7 @@ class _AsyncDB:
         ],
     ):
         query = sa.delete(table).where(
-            sa.and_(*where if isinstance(where, tuple) else where)
+            sa.and_(*where) if isinstance(where, tuple) else sa.and_(where)
         )
 
         await cls.execute(session=session, query=query, commit=True)
@@ -299,3 +302,12 @@ class _AsyncDB:
             column.name: getattr(table, column.name)
             for column in table.__table__.columns
         }
+
+
+class Result(p.BaseModel):
+    data: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]]
+    count: _t.Optional[_t.Union[int, tuple[int]]] = None
+    sum: _t.Optional[_t.Union[float, tuple[float]]] = None
+    avg: _t.Optional[_t.Union[float, tuple[float]]] = None
+    min: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
+    max: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None

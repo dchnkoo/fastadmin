@@ -1,3 +1,5 @@
+from fastui import components as c
+
 import pydantic as p
 import typing as _t
 
@@ -281,4 +283,15 @@ class ModelAttributes:
     If the attribute is True, then it will be possible to edit data from the admin panel in the table.
 
     default is True.
+    """
+
+    display_lookups: _t.Optional[list[c.display.DisplayLookup]] = None
+    """
+    List of :object:`DisplayLookup` implement this list to
+    configure which columns to show on page of this table.
+    """
+
+    table_size: int = 25
+    """
+    Size of data on the page for this table.
     """

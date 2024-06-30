@@ -5,20 +5,72 @@ from fastadmin.ui import urls
 from fastui import prebuilt_html, components as c
 import fastapi as fa
 
-from fastui import FastUI
+from fastui import FastUI, forms, auth as uiauth
 
 import pydantic as p
 import typing as _t
 
 
-ui = fa.APIRouter(prefix=FastAdminConfig.api_root_url)
+auth = fa.FastAPI(include_in_schema=False)
+uiauth.fastapi_auth_exception_handling(auth)
+
+
+@auth.post(
+    "/autheficate",
+    include_in_schema=False,
+)
+async def autheficate(
+    auth: _t.Annotated[
+        FastAdminConfig.auth_model, forms.fastui_form(FastAdminConfig.auth_model)
+    ],
+) -> list[c.AnyComponent]:
+    admin = FastAdminMeta._get_admin()
+
+    session = admin.get_session()
+
+    async with session() as session:
+        return await admin.authefication(auth_credentials=auth, session=session)
+
+
+@auth.get(
+    "/authefication",
+    response_model=FastUI,
+    response_model_exclude_none=True,
+    include_in_schema=False,
+)
+def authefication(
+    user: _t.Optional[p.EmailStr] = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials_or_none
+    ),
+):
+    if user is not None:
+        raise uiauth.AuthRedirect(FastAdminMeta._get_home_link())
+
+    return [
+        c.Navbar(
+            title=FastAdminConfig.default_title,
+        ),
+        c.Page(
+            components=[
+                c.ModelForm(
+                    submit_url=FastAdminConfig.api_root_url + "/autheficate",
+                    display_mode="page",
+                    model=FastAdminConfig.auth_model,
+                )
+            ],
+            class_name="+ p-2",
+        ),
+    ]
+
+
+ui = fa.FastAPI(include_in_schema=False)
 
 
 @ui.get(urls.HOME, response_model=FastUI, response_model_exclude_none=True)
 async def home_page(
     table: str,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
-    metainfo: MetaInfo = fa.Depends(FastAdminMeta._get_metainfo),
+    metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     field: _t.Optional[str] = None,
     search: _t.Optional[str] = None,
     page: int = 1,
@@ -32,6 +84,7 @@ async def home_page(
             return await model.home(
                 table_name=table,
                 session=session,
+                metainfo=metainfo,
                 pydantic_model=admin_model,
                 field=field,
                 search=search,
@@ -49,7 +102,6 @@ async def home_page(
 
 
 main = fa.FastAPI(include_in_schema=False)
-main.include_router(ui)
 
 
 @main.get("/{path:path}")

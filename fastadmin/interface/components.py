@@ -1,7 +1,11 @@
-from fastui import components as c, events as e
+from fastui import components as c, events as e, types
 import fastui.class_name as cls_name
 
+import pydantic as p
 import typing as _t
+
+if _t.TYPE_CHECKING:
+    from fastadmin.metadata import FastAdminMeta
 
 
 class FastAdminComponents:
@@ -47,17 +51,30 @@ class FastAdminComponents:
         ]
 
     @classmethod
-    def left(cls) -> list[c.AnyComponent]:
-        return []
-
-    @classmethod
-    def right(cls) -> list[c.AnyComponent]:
-        return []
-
-    @classmethod
-    def body(cls) -> list[c.AnyComponent]:
-        return []
-
-    @classmethod
-    def footer(cls) -> list[c.AnyComponent]:
-        return []
+    def table_with_pagination(
+        cls: type["FastAdminMeta"],
+        page: int,
+        total: int,
+        data: _t.Sequence[p.SerializeAsAny[types.DataModel]],
+        data_model: _t.Optional[type[p.BaseModel]] = None,
+        no_data_message: _t.Optional[str] = None,
+        class_name_table: c._class_name.ClassNameField = None,
+        page_query_param: str = "page",
+        class_name_pagination: c._class_name.ClassNameField = None,
+    ) -> tuple[c.Table, c.Pagination]:
+        return [
+            c.Table(
+                data=data,
+                columns=cls.display_lookups,
+                data_model=data_model,
+                no_data_message=no_data_message,
+                class_name=class_name_table,
+            ),
+            c.Pagination(
+                page=page,
+                page_size=cls.table_size,
+                total=total,
+                page_query_param=page_query_param,
+                class_name=class_name_pagination,
+            ),
+        ]
