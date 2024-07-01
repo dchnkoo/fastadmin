@@ -339,7 +339,13 @@ class FastAdminJWT(AbsractJWTMiddleware):
                 value=token,
             )
 
-            return await call_next(request)
+            response = await call_next(request)
+
+            self.set_cookie_to_response(
+                resposne=response, cookie_name=self.access.name, cookie_value=token
+            )
+
+            return response
 
         except Exception as exc:
             print(exc)

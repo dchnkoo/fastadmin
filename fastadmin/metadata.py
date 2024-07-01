@@ -61,14 +61,32 @@ class FastAdminMeta(
         return cls._get_table(FastAdminConfig.admin_table_name)
 
     @classmethod
-    def _get_home_link(cls) -> str:
+    def _get_first_home_object_link(cls):
         metainfo: MetaInfo = next(iter(cls.__admin_metadata__.values()))
 
+        return cls._get_home_link().format(table=metainfo.table_db_name)
+
+    @classmethod
+    def _get_home_links(cls) -> list[c.Link]:
+        return [
+            c.Link(
+                components=[
+                    c.Text(text=cls.__title__ if cls.__title__ else i.table_class_name)
+                ],
+                on_click=e.GoToEvent(
+                    url=cls._get_home_link().format(table=i.table_db_name)
+                ),
+                active="startswith:"
+                + cls._get_home_link().format(table=i.table_db_name),
+            )
+            for i in cls.__meta_values__
+        ]
+
+    @classmethod
+    def _get_home_link(cls) -> str:
         from fastadmin.ui.urls import HOME
 
-        return FastAdminConfig.api_path_strip + HOME.format(
-            table=metainfo.table_db_name
-        )
+        return FastAdminConfig.api_path_strip + HOME
 
     @staticmethod
     def _set_permissions(cls: type["FastAdminMeta"]):

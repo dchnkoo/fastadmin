@@ -295,3 +295,13 @@ class ModelAttributes:
     """
     Size of data on the page for this table.
     """
+
+    __title__: _t.Optional[str] = None
+    """
+    title for this table which will be used anywhere in admin UI.
+    """
+
+    no_data_message: _t.Optional[str] = None
+    """
+    if not data in table this message will be display on page.
+    """

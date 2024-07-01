@@ -57,17 +57,16 @@ class FastAdminComponents:
         total: int,
         data: _t.Sequence[p.SerializeAsAny[types.DataModel]],
         data_model: _t.Optional[type[p.BaseModel]] = None,
-        no_data_message: _t.Optional[str] = None,
         class_name_table: c._class_name.ClassNameField = None,
         page_query_param: str = "page",
         class_name_pagination: c._class_name.ClassNameField = None,
     ) -> tuple[c.Table, c.Pagination]:
         return [
             c.Table(
-                data=data,
+                data=[data_model(**i) for i in data] if data_model else data,
                 columns=cls.display_lookups,
                 data_model=data_model,
-                no_data_message=no_data_message,
+                no_data_message=cls.no_data_message,
                 class_name=class_name_table,
             ),
             c.Pagination(

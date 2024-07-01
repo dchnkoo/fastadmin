@@ -1,7 +1,6 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import sqlalchemy as sa
 
-from fastadmin.utils.descriptor.clas import classproperty
 from fastadmin.metadata import FastAdminMeta
 from fastadmin import FastAdmin
 
@@ -22,16 +21,12 @@ class Worker(FastAdminMeta, Base):
 class User(Base, FastAdminMeta):
     __tablename__ = "some_user"
 
-    @classproperty
-    def admin(cls):
-        return {"exclude": ["id", "name"]}
-
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(nullable=True)
     worker: Mapped[int] = mapped_column(
         sa.ForeignKey("some_worker.id", link_to_name=True),
         nullable=False,
-        doc="Worker",
+        doc="Работодавець",
         primary_key=True,
     )
 

@@ -1,5 +1,6 @@
 from fastadmin.metadata import FastAdminMeta, MetaInfo
 from fastadmin.conf import FastAdminConfig
+from fastadmin.utils import types
 from fastadmin.ui import urls
 
 from fastui import prebuilt_html, components as c
@@ -43,8 +44,8 @@ def authefication(
         FastAdminConfig.admin_middleware.get_access_credentials_or_none
     ),
 ):
-    if user is not None:
-        raise uiauth.AuthRedirect(FastAdminMeta._get_home_link())
+    # if user is not None:
+    #     raise uiauth.AuthRedirect(FastAdminMeta._get_first_home_object_link())
 
     return [
         c.Navbar(
@@ -64,9 +65,15 @@ def authefication(
 
 
 ui = fa.FastAPI(include_in_schema=False)
+ui.add_middleware(FastAdminConfig.admin_middleware)
 
 
-@ui.get(urls.HOME, response_model=FastUI, response_model_exclude_none=True)
+@ui.get(
+    urls.HOME,
+    response_model=FastUI,
+    response_model_exclude_none=True,
+    include_in_schema=False,
+)
 async def home_page(
     table: str,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
@@ -74,6 +81,9 @@ async def home_page(
     field: _t.Optional[str] = None,
     search: _t.Optional[str] = None,
     page: int = 1,
+    access: types.AccessCredentials = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials
+    ),
 ) -> list[c.AnyComponent]:
     try:
         admin_model: p.BaseModel = model.which_model("admin")
@@ -82,16 +92,18 @@ async def home_page(
 
         async with session() as session:
             return await model.home(
+                pydantic_model=admin_model,
+                metainfo=metainfo,
                 table_name=table,
                 session=session,
-                metainfo=metainfo,
-                pydantic_model=admin_model,
-                field=field,
                 search=search,
+                access=access,
+                field=field,
                 page=page,
             )
 
     except Exception as exc:
+        print(exc)
         return [
             c.Error(
                 title="Error",

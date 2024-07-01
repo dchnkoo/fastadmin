@@ -163,8 +163,6 @@ class FastAdmin(_fa.FastAPI):
         from fastadmin.ui.main import ui, auth
 
         self.mount(path=api_root_url, app=auth)
-
-        ui.add_middleware(self.admin_middleware)
         auth.mount(path="", app=ui)
 
         from fastadmin.ui.main import main
