@@ -306,8 +306,8 @@ class _AsyncDB:
 
 class Result(p.BaseModel):
     data: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]]
-    count: _t.Optional[_t.Union[int, tuple[int]]] = None
-    sum: _t.Optional[_t.Union[float, tuple[float]]] = None
-    avg: _t.Optional[_t.Union[float, tuple[float]]] = None
+    count: _t.Optional[_t.Union[int, tuple[int]]] = 0
+    sum: _t.Optional[_t.Union[float, tuple[float]]] = 0
+    avg: _t.Optional[_t.Union[float, tuple[float]]] = 0
     min: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
     max: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None

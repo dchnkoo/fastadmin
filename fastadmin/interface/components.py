@@ -1,6 +1,8 @@
 from fastui import components as c, events as e, types
 import fastui.class_name as cls_name
 
+from fastadmin.conf import FastAdminConfig
+
 import pydantic as p
 import typing as _t
 
@@ -60,6 +62,39 @@ class FastAdminComponents:
                 end_links=end_links,
                 class_name=class_name,
             )
+        ]
+
+    @classmethod
+    def exit_event(cls: type["FastAdminMeta"]) -> list[c.AnyComponent]:
+        return [
+            c.Modal(
+                title="Logout",
+                body=[c.Text(text="Are you sure do you want to logout?")],
+                open_trigger=e.PageEvent(name="exit"),
+                footer=[
+                    c.Button(
+                        text="Cancel",
+                        on_click=e.PageEvent(name="exit", clear=True),
+                        named_style="secondary",
+                    ),
+                    c.Button(
+                        text="Logout",
+                        on_click=e.PageEvent(name="logout"),
+                        class_name="btn btn-danger",
+                    ),
+                ],
+            ),
+            c.Form(
+                submit_url=FastAdminConfig.api_root_url + cls._get_urls().EXIT,
+                footer=[],
+                submit_trigger=e.PageEvent(name="logout"),
+                form_fields=[
+                    c.FormFieldInput(
+                        name="", title="", initial="data", html_type="hidden"
+                    )
+                ],
+                class_name="",
+            ),
         ]
 
     @classmethod

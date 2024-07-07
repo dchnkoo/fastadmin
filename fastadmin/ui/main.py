@@ -68,10 +68,7 @@ ui = fa.FastAPI(include_in_schema=False)
 ui.add_middleware(FastAdminConfig.admin_middleware)
 
 
-@ui.post(
-    urls.EXIT,
-    include_in_schema=False,
-)
+@ui.post(urls.EXIT)
 async def exit(
     user: types.AccessCredentials = fa.Depends(
         FastAdminConfig.admin_middleware.get_access_credentials_or_none
@@ -89,7 +86,6 @@ async def exit(
     urls.HOME,
     response_model=FastUI,
     response_model_exclude_none=True,
-    include_in_schema=False,
 )
 async def home_page(
     table: str,
@@ -129,6 +125,69 @@ async def home_page(
             )
         ]
 
+
+@ui.get(
+    urls.DETAILS,
+    response_model=FastUI,
+    response_model_exclude_none=True,
+)
+async def details_page(
+    table: str,
+    field: str,
+    value: str,
+    model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
+    metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
+    access: types.AccessCredentials = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials
+    ),
+) -> list[c.AnyComponent]:
+    session = model.get_session()
+
+    pydantic_model = model.which_model("admin")
+
+    async with session() as session:
+        return await model.details(
+            session=session,
+            pydantic_model=pydantic_model,
+            table=table,
+            field=field,
+            value=value,
+            metainfo=metainfo,
+            access=access,
+        )
+
+
+add = fa.APIRouter(
+    include_in_schema=False,
+    dependencies=[
+        fa.Depends(
+            FastAdminMeta.call_check_permissions_funcion("check_add_permissions")
+        )
+    ],
+)
+
+edit = fa.APIRouter(
+    include_in_schema=False,
+    dependencies=[
+        fa.Depends(
+            FastAdminMeta.call_check_permissions_funcion("check_edit_permissions")
+        )
+    ],
+)
+
+delete = fa.APIRouter(
+    include_in_schema=False,
+    dependencies=[
+        fa.Depends(
+            FastAdminMeta.call_check_permissions_funcion("check_delete_permissions")
+        )
+    ],
+)
+
+
+ui.include_router(add)
+ui.include_router(edit)
+ui.include_router(delete)
 
 main = fa.FastAPI(include_in_schema=False)
 

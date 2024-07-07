@@ -1,5 +1,7 @@
 HOME = "/home/{table}"
 SEARCH = "/search/{table}"
+DETAILS = HOME + "/{field}/{value}"
 AUTHEFICATE = "/autheficate"
 AUTHEFICATION = "/authefication"
 EXIT = "/exit"
+FORM = HOME + "/form"

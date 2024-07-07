@@ -283,20 +283,30 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
 user_id: _t.TypeAlias = int
 
 
+class AccessCredetinalsAdmin(p.BaseModel):
+    email: p.EmailStr
+    permissions: list[str]
+    is_super: bool
+
+
 class FastAdminJWT(AbsractJWTMiddleware):
     @classmethod
     def get_access_playload(cls, user: type["AdminUser"]) -> dict:
-        return dict(email=user.email)
+        return dict(
+            email=user.email, permissions=user.permissions, is_super=user.is_super
+        )
 
     @classmethod
     def get_refresh_playload(cls, user: type["AdminUser"]) -> dict:
         return dict(id=user.id)
 
     @classmethod
-    async def get_access_credentials(cls, request: _fa.Request) -> p.EmailStr:
+    async def get_access_credentials(
+        cls, request: _fa.Request
+    ) -> AccessCredetinalsAdmin:
         data = await super().get_access_credentials(request)
 
-        return data.get("email")
+        return AccessCredetinalsAdmin(**data)
 
     @classmethod
     async def get_refresh_credentials(cls, request: _fa.Request) -> user_id:
@@ -350,14 +360,11 @@ class FastAdminJWT(AbsractJWTMiddleware):
             async with session() as session:
                 data = await admin.get(
                     session=session,
-                    table=(admin.email,),
                     where=admin.id == user_id,
                     all_=False,
                 )
 
-            email = data.data
-
-            playload = self.access_playload(email=email)
+            playload = self.get_access_playload(user=data.data)
 
             token = await self.get_token(self.access.algorithm, **playload)
 

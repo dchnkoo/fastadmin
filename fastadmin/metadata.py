@@ -1,7 +1,8 @@
 from fastadmin.model.sqlmodel2pydantic import SQLModel2Pydantic
 from fastadmin.model.attributes import ModelAttributes
-from fastadmin.model.actions import ModelActions
 from fastadmin.model.db_manager import ModelDB, Result
+from fastadmin.model.actions import ModelActions
+from fastadmin.utils import types
 
 from fastadmin.utils.descriptor.clas import classproperty
 import fastadmin.utils.types as _tb
@@ -120,6 +121,27 @@ class FastAdminMeta(
                 perms.append(perm)
 
         return perms
+
+    @classmethod
+    def call_check_permissions_funcion(cls, func_name: str):
+        async def check_permissions(
+            table: str,
+            access: types.AccessCredentials = _fa.Depends(
+                FastAdminConfig.admin_middleware.get_access_credentials
+            ),
+        ):
+            metainfo = cls.__get_metainfo__(table=table)
+            model = metainfo.table
+
+            session = model.get_session()
+
+            func: _t.Callable = getattr(model, func_name)
+
+            async with session() as session:
+                if (func(user=access, session=session, metainfo=metainfo)) is False:
+                    raise _fa.HTTPException(status_code=_fa.status.HTTP_423_LOCKED)
+
+        return check_permissions
 
     @classmethod
     def __meta_set_columns__(cls, table: "sa.Table") -> dict[str, "TableColumn"]:

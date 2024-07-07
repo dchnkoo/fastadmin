@@ -1,7 +1,12 @@
-from fastui import components as c
+from fastui import components as c, events as e
+
+from fastadmin.utils.descriptor.clas import classproperty
 
 import pydantic as p
 import typing as _t
+
+if _t.TYPE_CHECKING:
+    from fastadmin.metadata import FastAdminMeta
 
 
 class ModelAttributes:
@@ -285,11 +290,39 @@ class ModelAttributes:
     default is True.
     """
 
-    display_lookups: _t.Optional[list[c.display.DisplayLookup]] = None
-    """
-    List of :object:`DisplayLookup` implement this list to
-    configure which columns to show on page of this table.
-    """
+    @classproperty
+    def display_lookups(cls: "FastAdminMeta") -> list[c.display.DisplayLookup]:
+        """
+        List of :object:`DisplayLookup` implement this list to
+        configure which columns to show on page of this table.
+        """
+        lookups: list[c.display.DisplayLookup] = []
+
+        meta = cls.__get_metainfo__(cls.__tablename__)
+
+        if meta.unique_columns:
+            column = list(meta.unique_columns.keys())[0]
+
+            url = f"./{column}" + "/{" + column + "}"
+
+            lookups.append(
+                c.display.DisplayLookup(field=column, on_click=e.GoToEvent(url=url))
+            )
+
+        else:
+            column = list(meta.primary_columns.keys())[0]
+
+            url = f"./{column}" + "/{" + column + "}"
+
+            lookups.append(
+                c.display.DisplayLookup(field=column, on_click=e.GoToEvent(url=url))
+            )
+
+        for column in meta.columns:
+            if column != lookups[0].field:
+                lookups.append(c.display.DisplayLookup(field=column))
+
+        return lookups
 
     table_size: int = 25
     """

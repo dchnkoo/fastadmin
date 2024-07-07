@@ -51,7 +51,9 @@ class AdminUser(Permissions, FastAdminMeta, FastAdminConfig.sqlalchemy_metadata)
     password: Mapped[str] = mapped_column(nullable=False)
 
     display_lookups = [
-        c.display.DisplayLookup(field="email", on_click=e.GoToEvent(url="./{id}")),
+        c.display.DisplayLookup(
+            field="email", on_click=e.GoToEvent(url="./email/{email}")
+        ),
         c.display.DisplayLookup(field="first_name"),
         c.display.DisplayLookup(field="last_name"),
         c.display.DisplayLookup(field="is_super"),
