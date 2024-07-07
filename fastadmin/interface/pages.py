@@ -53,12 +53,42 @@ class FastAdminPages(comp.FastAdminComponents):
                     total=data.count,
                 ),
             ],
+            left=[
+                c.Modal(
+                    title="Logout",
+                    body=[c.Text(text="Are you sure do you want to logout?")],
+                    open_trigger=e.PageEvent(name="exit"),
+                    footer=[
+                        c.Button(
+                            text="Cancel",
+                            on_click=e.PageEvent(name="exit", clear=True),
+                            named_style="secondary",
+                        ),
+                        c.Button(
+                            text="Logout",
+                            on_click=e.PageEvent(name="logout"),
+                            class_name="btn btn-danger",
+                        ),
+                    ],
+                ),
+                c.Form(
+                    submit_url=FastAdminConfig.api_root_url + cls._get_urls().EXIT,
+                    footer=[],
+                    submit_trigger=e.PageEvent(name="logout"),
+                    form_fields=[
+                        c.FormFieldInput(
+                            name="", title="", initial="data", html_type="hidden"
+                        )
+                    ],
+                    class_name="",
+                ),
+            ],
             heading=[
                 *cls.header(
                     title=FastAdminConfig.default_title,
                     title_event=e.GoToEvent(url=cls._get_first_home_object_link()),
                     end_links=[c.Link(components=[c.Text(text=access)])],
-                )
+                ),
             ],
         )
 

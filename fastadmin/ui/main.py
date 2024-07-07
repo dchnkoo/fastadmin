@@ -17,7 +17,7 @@ uiauth.fastapi_auth_exception_handling(auth)
 
 
 @auth.post(
-    "/autheficate",
+    urls.AUTHEFICATE,
     include_in_schema=False,
 )
 async def autheficate(
@@ -34,13 +34,13 @@ async def autheficate(
 
 
 @auth.get(
-    "/authefication",
+    urls.AUTHEFICATION,
     response_model=FastUI,
     response_model_exclude_none=True,
     include_in_schema=False,
 )
 def authefication(
-    user: _t.Optional[p.EmailStr] = fa.Depends(
+    user: _t.Optional[types.AccessCredentials] = fa.Depends(
         FastAdminConfig.admin_middleware.get_access_credentials_or_none
     ),
 ):
@@ -54,7 +54,7 @@ def authefication(
         c.Page(
             components=[
                 c.ModelForm(
-                    submit_url=FastAdminConfig.api_root_url + "/autheficate",
+                    submit_url=FastAdminConfig.api_root_url + urls.AUTHEFICATE,
                     display_mode="page",
                     model=FastAdminConfig.auth_model,
                 )
@@ -66,6 +66,23 @@ def authefication(
 
 ui = fa.FastAPI(include_in_schema=False)
 ui.add_middleware(FastAdminConfig.admin_middleware)
+
+
+@ui.post(
+    urls.EXIT,
+    include_in_schema=False,
+)
+async def exit(
+    user: types.AccessCredentials = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials_or_none
+    ),
+):
+    admin = FastAdminMeta._get_admin()
+
+    session = admin.get_session()
+
+    async with session() as session:
+        return await admin.exit(user=user, session=session)
 
 
 @ui.get(

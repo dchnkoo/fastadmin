@@ -33,13 +33,25 @@ class FastAdminComponents:
 
     @classmethod
     def header(
-        cls,
+        cls: type["FastAdminMeta"],
         title: _t.Optional[str] = None,
         title_event: _t.Optional[e.AnyEvent] = None,
         start_links: _t.List[c.Link] = [],
         end_links: _t.List[c.Link] = [],
         class_name: cls_name.ClassNameField = None,
     ) -> list[c.AnyComponent]:
+        end_links.append(
+            c.Link(
+                components=[
+                    c.Button(
+                        text="Logout",
+                        on_click=e.PageEvent(name="exit"),
+                        class_name="btn btn-danger",
+                    )
+                ],
+            )
+        )
+
         return [
             c.Navbar(
                 title=title,

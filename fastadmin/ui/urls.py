@@ -1,2 +1,5 @@
 HOME = "/home/{table}"
 SEARCH = "/search/{table}"
+AUTHEFICATE = "/autheficate"
+AUTHEFICATION = "/authefication"
+EXIT = "/exit"

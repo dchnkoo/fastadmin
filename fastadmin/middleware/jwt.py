@@ -242,6 +242,35 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
         """
         del cookie[name]
 
+    @classmethod
+    def delete_cookie_to_response(
+        cls, response: _fa.Response, cookie_name: str, **kw: CookieSettings
+    ) -> None:
+        response.delete_cookie(cookie_name, **kw)
+
+    @classmethod
+    def delete_access_cookie_to_response(
+        cls, response: _fa.Response, **kw: CookieSettings
+    ) -> None:
+        cls.delete_cookie_to_response(
+            response=response, cookie_name=cls.access.name, **kw
+        )
+
+    @classmethod
+    def delete_refresh_cookie_to_response(
+        cls, response: _fa.Response, **kw: CookieSettings
+    ) -> None:
+        cls.delete_cookie_to_response(
+            response=response, cookie_name=cls.refresh.name, **kw
+        )
+
+    @classmethod
+    def delete_both_cookies_to_response(
+        cls, response: _fa.Response, **kw: CookieSettings
+    ) -> None:
+        cls.delete_access_cookie_to_response(response=response, **kw)
+        cls.delete_refresh_cookie_to_response(response=response, **kw)
+
     @abstractmethod
     async def dispatch(
         self,

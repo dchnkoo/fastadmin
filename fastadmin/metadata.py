@@ -33,28 +33,30 @@ class FastAdminMeta(
     def __init_subclass__(cls: type["DeclarativeBase"] | type["FastAdminMeta"]) -> None:
         super().__init_subclass__()
 
-        table = cls.__table__
+        if hasattr(cls, "__table__"):
+            table = cls.__table__
 
-        columns = FastAdminMeta.__meta_set_columns__(table)
+            columns = FastAdminMeta.__meta_set_columns__(table)
 
-        data = MetaInfo(
-            table=cls,
-            table_class_name=cls.__name__,
-            table_db_name=cls.__tablename__,
-            primary_columns={k: v for k, v in columns.items() if v.primary_key},
-            foregin_columns={
-                k: v for k, v in columns.items() if v.foregin_key is not None
-            },
-            unique_columns={
-                k: v
-                for k, v in columns.items()
-                if v.unique is not None and v.unique is True
-            },
-            columns=columns,
-            permissions=FastAdminMeta._set_permissions(cls),
-        )
+            data = MetaInfo(
+                table=cls,
+                table_class_name=cls.__name__,
+                table_db_name=cls.__tablename__,
+                table_title=cls.__title__,
+                primary_columns={k: v for k, v in columns.items() if v.primary_key},
+                foregin_columns={
+                    k: v for k, v in columns.items() if v.foregin_key is not None
+                },
+                unique_columns={
+                    k: v
+                    for k, v in columns.items()
+                    if v.unique is not None and v.unique is True
+                },
+                columns=columns,
+                permissions=FastAdminMeta._set_permissions(cls),
+            )
 
-        FastAdminMeta.__admin_metadata__[cls.__tablename__] = data
+            FastAdminMeta.__admin_metadata__[cls.__tablename__] = data
 
     @classmethod
     def _get_admin(cls) -> type["FastAdminMeta"]:
@@ -71,7 +73,7 @@ class FastAdminMeta(
         return [
             c.Link(
                 components=[
-                    c.Text(text=cls.__title__ if cls.__title__ else i.table_class_name)
+                    c.Text(text=i.table_title if i.table_title else i.table_class_name)
                 ],
                 on_click=e.GoToEvent(
                     url=cls._get_home_link().format(table=i.table_db_name)
@@ -83,10 +85,16 @@ class FastAdminMeta(
         ]
 
     @classmethod
-    def _get_home_link(cls) -> str:
-        from fastadmin.ui.urls import HOME
+    def _get_urls(cls):
+        from fastadmin.ui import urls
 
-        return FastAdminConfig.api_path_strip + HOME
+        return urls
+
+    @classmethod
+    def _get_home_link(cls) -> str:
+        urls = cls._get_urls()
+
+        return FastAdminConfig.api_path_strip + urls.HOME
 
     @staticmethod
     def _set_permissions(cls: type["FastAdminMeta"]):
@@ -198,8 +206,6 @@ class FastAdminMeta(
             count=True,
         )
 
-        print(user)
-
         user = user.data
 
         if user is None:
@@ -209,12 +215,33 @@ class FastAdminMeta(
 
         response = _fa.responses.JSONResponse(
             content=[
-                c.FireEvent(event=e.GoToEvent(url=cls._get_home_link())).model_dump()
+                c.FireEvent(
+                    event=e.GoToEvent(url=cls._get_first_home_object_link())
+                ).model_dump()
             ]
         )
 
         await FastAdminConfig.admin_middleware.set_cookies_to_reponse(
             response=response, user=user
+        )
+
+        return response
+
+    @classmethod
+    async def exit(cls, user: _tb.AccessCredentials, session: AsyncSession):
+        response = _fa.responses.JSONResponse(
+            content=[
+                c.FireEvent(
+                    event=e.GoToEvent(
+                        url=FastAdminConfig.api_path_strip
+                        + cls._get_urls().AUTHEFICATION
+                    )
+                ).model_dump()
+            ]
+        )
+
+        FastAdminConfig.admin_middleware.delete_both_cookies_to_response(
+            response=response
         )
 
         return response
@@ -240,6 +267,7 @@ class MetaInfo(p.BaseModel):
     table: type[FastAdminMeta]
     table_class_name: str
     table_db_name: str
+    table_title: _t.Optional[str]
     primary_columns: dict[str, TableColumn]
     foregin_columns: dict[str, TableColumn] = {}
     unique_columns: dict[str, TableColumn] = {}
