@@ -1,30 +1,37 @@
-from inspect import signature
-
-import pydantic as p
+import sqlalchemy as sa
 import typing as _t
 
-
-class FunctionArg(p.BaseModel):
-    annotation: _t.Any
-    name: str
-
-
-class FuncInfo(p.BaseModel):
-    name: str
-    doc: _t.Optional[str]
-    args: _t.List[FunctionArg]
-    return_value: _t.Any
+if _t.TYPE_CHECKING:
+    from fastadmin.metadata import MetaInfo
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def get_info(func: _t.Callable) -> FuncInfo:
-    info = signature(func)
+async def search_func(
+    session: "AsyncSession",
+    metainfo: "MetaInfo",
+    field: _t.Optional[str],
+    search: _t.Optional[str],
+    **kw,
+):
+    where = []
+    where_or = []
 
-    return FuncInfo(
-        name=func.__name__,
-        doc=func.__doc__,
-        args=[
-            FunctionArg(annotation=i.annotation, name=i.name)
-            for i in info.parameters.values()
-        ],
-        return_value=info.return_annotation,
+    table = metainfo.table
+
+    if field is not None and search is not None:
+        meta_field = metainfo.columns.get(field)
+
+        where.append(getattr(table, meta_field.name) == meta_field.python_type(search))
+
+    if field is None and search is not None:
+        search = search.split(" ") if " " in search else [search]
+
+        for key, _ in metainfo.columns.items():
+            for word in search:
+                where_or.append(
+                    sa.cast(getattr(table, key), sa.String).ilike(f"%{word}%")
+                )
+
+    return await table.get(
+        session=session, where=tuple(where), where_or=tuple(where_or), **kw
     )

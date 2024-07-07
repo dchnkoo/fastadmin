@@ -39,6 +39,11 @@ class ModelDB(_AsyncDB):
                 _sa_t.ColumnExpressionArgument, tuple[_sa_t.ColumnExpressionArgument]
             ]
         ] = None,
+        where_or: _t.Optional[
+            _t.Union[
+                _sa_t.ColumnExpressionArgument, tuple[_sa_t.ColumnExpressionArgument]
+            ]
+        ] = None,
         having: _t.Optional[
             _t.Union[
                 _sa_t.ColumnExpressionArgument, tuple[_sa_t.ColumnExpressionArgument]
@@ -61,6 +66,7 @@ class ModelDB(_AsyncDB):
             session=session,
             table=cls if table is None else table,
             where=where,
+            where_or=where_or,
             having=having,
             count=count,
             sum=sum,

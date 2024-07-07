@@ -1,5 +1,6 @@
 from fastadmin.interface import components as comp
 from fastadmin.conf import FastAdminConfig
+from fastadmin.utils.func import search_func
 
 from fastui import components as c, events as e
 
@@ -11,7 +12,15 @@ import typing as _t
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import MetaInfo, FastAdminMeta
     from fastadmin.middleware.jwt import AccessCredetinalsAdmin
-    from fastadmin.utils.database.asyn import Result
+
+
+class SearchInput(p.BaseModel):
+    search: _t.Optional[str] = p.Field(
+        default=None,
+        json_schema_extra={
+            "placeholder": "Search..",
+        },
+    )
 
 
 class FastAdminPages(comp.FastAdminComponents):
@@ -27,8 +36,11 @@ class FastAdminPages(comp.FastAdminComponents):
         page: int,
         access: "AccessCredetinalsAdmin",
     ) -> list[c.AnyComponent]:
-        data: "Result" = await cls.get(
+        data = await search_func(
             session=session,
+            metainfo=metainfo,
+            field=field,
+            search=search,
             count=True,
             to_dict=True,
         )
@@ -44,6 +56,14 @@ class FastAdminPages(comp.FastAdminComponents):
             ),
             c.LinkList(
                 links=cls._get_home_links(), mode="tabs", class_name="+ mt-2 mb-4"
+            ),
+            c.ModelForm(
+                model=SearchInput,
+                initial={"search": search},
+                method="GOTO",
+                submit_on_change=True,
+                display_mode="inline",
+                submit_url=".",
             ),
             *cls.table_with_pagination(
                 page=page,
@@ -92,12 +112,26 @@ class FastAdminPages(comp.FastAdminComponents):
         metainfo: "MetaInfo",
         access: "AccessCredetinalsAdmin",
     ) -> list[c.AnyComponent]:
+        meta_field = metainfo.columns.get(field)
+
         detail = await cls.get(
             session=session,
-            where=getattr(cls, field) == value,
+            where=getattr(cls, meta_field.name) == meta_field.python_type(value),
             all_=False,
             to_dict=True,
         )
+
+        body = [
+            c.Link(components=[c.Text(text="Back")], on_click=e.BackEvent()),
+            c.Details(
+                data=pydantic_model(**detail.data),
+                fields=cls.set_display_lookups_details(
+                    metainfo=metainfo, data=detail.data
+                ),
+            ),
+        ]
+
+        cls.set_foregin_links_to_details(table=table, detail=detail, body=body)
 
         return cls.page_frame(
             heading=[
@@ -108,12 +142,7 @@ class FastAdminPages(comp.FastAdminComponents):
                 ),
             ],
             left=[*cls.exit_event()],
-            body=[
-                c.Link(components=[c.Text(text="Back")], on_click=e.BackEvent()),
-                c.Details(
-                    data=pydantic_model(**detail.data),
-                ),
-            ],
+            body=body,
         )
 
     @classmethod

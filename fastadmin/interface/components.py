@@ -7,7 +7,8 @@ import pydantic as p
 import typing as _t
 
 if _t.TYPE_CHECKING:
-    from fastadmin.metadata import FastAdminMeta
+    from fastadmin.metadata import FastAdminMeta, MetaInfo
+    from fastadmin.utils.database.asyn import Result
 
 
 class FastAdminComponents:
@@ -124,3 +125,72 @@ class FastAdminComponents:
                 class_name=class_name_pagination,
             ),
         ]
+
+    @classmethod
+    def set_foregin_links_to_details(
+        cls: type["FastAdminMeta"],
+        table: str,
+        detail: "Result",
+        body: list[c.AnyComponent],
+    ):
+        components = [
+            c.Heading(text="Additional Information", level=4, class_name="+ mt-2"),
+        ]
+
+        for info in cls.__admin_metadata__.values():
+            for foregin in info.foregin_columns.values():
+                if table == foregin.foregin_key.table_name:
+                    components.append(
+                        c.Button(
+                            text=(
+                                info.table_title
+                                if info.table_title
+                                else info.table_class_name
+                            ),
+                            on_click=e.GoToEvent(
+                                url=FastAdminConfig.api_path_strip
+                                + cls._get_urls().HOME.format(table=info.table_db_name)
+                                + f"?field={foregin.name}&search={str(detail.data.get(foregin.foregin_key.field_name))}",
+                                target="_blank",
+                            ),
+                            class_name="btn btn-outline-success m-2",
+                        )
+                    )
+
+        if len(components) > 1:
+            body.extend(components)
+
+    @classmethod
+    def set_display_lookups_details(
+        cls: type["FastAdminMeta"], metainfo: "MetaInfo", data: dict
+    ) -> list[c.display.DisplayLookup]:
+        lookups = []
+
+        exclude = []
+
+        for column in metainfo.foregin_columns.values():
+            lookup = c.display.DisplayLookup(
+                field=column.name,
+                on_click=e.GoToEvent(
+                    url=FastAdminConfig.api_path_strip
+                    + cls._get_urls().DETAILS.format(
+                        table=column.foregin_key.table_name,
+                        field=column.foregin_key.field_name,
+                        value=data.get(column.name),
+                    ),
+                    target="_blank",
+                ),
+            )
+
+            exclude.append(column.name)
+            lookups.append(lookup)
+
+        table_columns = list(metainfo.columns.values())
+
+        for column in table_columns:
+            if column.name not in exclude:
+                index = table_columns.index(column)
+
+                lookups.insert(index, c.display.DisplayLookup(field=column.name))
+
+        return lookups

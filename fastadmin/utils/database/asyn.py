@@ -111,6 +111,11 @@ class _AsyncDB:
                 sa_t.ColumnExpressionArgument, tuple[sa_t.ColumnExpressionArgument]
             ]
         ] = None,
+        where_or: _t.Optional[
+            _t.Union[
+                sa_t.ColumnExpressionArgument, tuple[sa_t.ColumnExpressionArgument]
+            ]
+        ] = None,
         having: _t.Optional[
             _t.Union[
                 sa_t.ColumnExpressionArgument, tuple[sa_t.ColumnExpressionArgument]
@@ -139,6 +144,11 @@ class _AsyncDB:
         if where is not None:
             query = query.where(
                 sa.and_(*where) if isinstance(where, tuple) else sa.and_(where)
+            )
+
+        if where_or is not None:
+            query = query.where(
+                sa.or_(*where_or) if isinstance(where_or, tuple) else sa.or_(where_or)
             )
 
         if count:
