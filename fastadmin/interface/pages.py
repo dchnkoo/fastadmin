@@ -131,6 +131,23 @@ class FastAdminPages(comp.FastAdminComponents):
             ),
         ]
 
+        if await cls.check_edit_permissions(
+            user=access, session=session, metainfo=metainfo
+        ):
+            body.append(
+                c.Button(
+                    text="Edit",
+                    on_click=e.GoToEvent(
+                        url=FastAdminConfig.api_path_strip
+                        + cls._get_urls().EDIT.format(
+                            table=table, field=field, value=value
+                        )
+                    ),
+                    named_style="warning",
+                    class_name="+ m-2",
+                )
+            )
+
         cls.set_foregin_links_to_details(table=table, detail=detail, body=body)
 
         return cls.page_frame(
@@ -147,12 +164,87 @@ class FastAdminPages(comp.FastAdminComponents):
 
     @classmethod
     async def form_page(
-        cls, session: AsyncSession, pydantic_model: _t.Type[p.BaseModel]
+        cls: type["FastAdminMeta"],
+        session: AsyncSession,
+        pydantic_model: _t.Type[p.BaseModel],
+        table_name: str,
+        metainfo: "MetaInfo",
+        access: "AccessCredetinalsAdmin",
     ) -> list[c.AnyComponent]:
-        ...
+        return cls.page_frame(
+            body=[
+                c.Heading(
+                    text=f"Add to {metainfo.table_title if metainfo.table_title else metainfo.table_class_name}"
+                ),
+                c.Link(components=[c.Text(text="Back")], on_click=e.BackEvent()),
+                c.ModelForm(
+                    model=pydantic_model,
+                    display_mode="page",
+                    submit_url=FastAdminConfig.api_root_url
+                    + cls._get_urls().FORM_ADD.format(table=table_name),
+                ),
+            ],
+            heading=[
+                *cls.header(
+                    title=FastAdminConfig.default_title,
+                    title_event=e.GoToEvent(url=cls._get_first_home_object_link()),
+                    end_links=[c.Link(components=[c.Text(text=access.email)])],
+                )
+            ],
+            left=[*cls.exit_event()],
+        )
 
     @classmethod
     async def edit_form_page(
-        cls, session: AsyncSession, pydantic_model: _t.Type[p.BaseModel]
+        cls: type["FastAdminMeta"],
+        session: AsyncSession,
+        pydantic_model: _t.Type[p.BaseModel],
+        table_name: str,
+        field: str,
+        value: str,
+        metainfo: "MetaInfo",
+        access: "AccessCredetinalsAdmin",
     ) -> list[c.AnyComponent]:
-        ...
+        meta_field = metainfo.columns.get(field)
+
+        data = await cls.get(
+            session=session,
+            where=getattr(cls, meta_field.name) == meta_field.python_type(value),
+            all_=False,
+            to_dict=True,
+        )
+
+        await cls.before_edit_view_page(
+            table=table_name,
+            field=field,
+            value=value,
+            metainfo=meta_field,
+            access=access,
+            data=data.data,
+        )
+
+        return cls.page_frame(
+            body=[
+                c.Heading(
+                    text=f"Edit {metainfo.table_title if metainfo.table_title else metainfo.table_class_name}"
+                ),
+                c.Link(components=[c.Text(text="Back")], on_click=e.BackEvent()),
+                c.ModelForm(
+                    model=pydantic_model,
+                    initial=data.data,
+                    display_mode="page",
+                    submit_url=FastAdminConfig.api_root_url
+                    + cls._get_urls().UPDATE.format(
+                        table=table_name, field=field, value=value
+                    ),
+                ),
+            ],
+            heading=[
+                *cls.header(
+                    title=FastAdminConfig.default_title,
+                    title_event=e.GoToEvent(url=cls._get_first_home_object_link()),
+                    end_links=[c.Link(components=[c.Text(text=access.email)])],
+                )
+            ],
+            left=[*cls.exit_event()],
+        )

@@ -41,6 +41,7 @@ class SQLModel2Pydantic:
             columns=columns,
             validators=valids,
             base=base,
+            model_type=model_type,
         )
 
     @staticmethod
@@ -84,6 +85,7 @@ class SQLModel2Pydantic:
         columns: dict[str, _t.Union[tuple[type, p.Field], "TableColumn"]],
         validators: dict[str, classmethod] | None,
         base: p.BaseModel | None,
+        model_type: _tb.FastModels,
     ) -> p.BaseModel:
         config_dict = {}
 
@@ -105,18 +107,25 @@ class SQLModel2Pydantic:
                 else PydanticUndefined
                 if options.default_value is None
                 else options.default_value,
-                title=options.doc,
+                title=options.options.title,
                 json_schema_extra={},
             )
 
             if options.foregin_key is not None:
-                url = (
-                    FastAdminConfig.api_path_strip
-                    + FastAdminConfig.api_root_url
-                    + urls.SEARCH.format(table=options.foregin_key.table_name)
+                url = FastAdminConfig.api_root_url + urls.SEARCH.format(
+                    table=options.foregin_key.table_name,
+                    from_table=options.column_from_table,
+                    foregin_field=options.foregin_key.field_name,
+                    from_table_field=name,
                 )
 
                 column_field_config.json_schema_extra["search_url"] = url
+
+                if model_type in ("form", "edit_form"):
+                    if _t.get_origin(column_type) is _t.Optional:
+                        column_type = _t.Optional[str]
+                    else:
+                        column_type = str
 
             config_dict[name] = (column_type, column_field_config)
 

@@ -1,6 +1,7 @@
-from fastui import components as c, events as e, types
+from fastui import components as c, events as e, types, forms
 import fastui.class_name as cls_name
 
+from fastadmin.utils.func import search_func
 from fastadmin.conf import FastAdminConfig
 
 import pydantic as p
@@ -8,7 +9,9 @@ import typing as _t
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import FastAdminMeta, MetaInfo
+    from fastadmin.middleware.jwt import AccessCredetinalsAdmin
     from fastadmin.utils.database.asyn import Result
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class FastAdminComponents:
@@ -137,7 +140,7 @@ class FastAdminComponents:
             c.Heading(text="Additional Information", level=4, class_name="+ mt-2"),
         ]
 
-        for info in cls.__admin_metadata__.values():
+        for info in cls.__meta_values__:
             for foregin in info.foregin_columns.values():
                 if table == foregin.foregin_key.table_name:
                     components.append(
@@ -194,3 +197,42 @@ class FastAdminComponents:
                 lookups.insert(index, c.display.DisplayLookup(field=column.name))
 
         return lookups
+
+    @classmethod
+    async def selected_search_response(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        foregin_table: "MetaInfo",
+        from_table: "MetaInfo",
+        foregin_field: str,
+        from_table_field: str,
+        access: "AccessCredetinalsAdmin",
+        q: _t.Optional[str],
+    ) -> forms.SelectSearchResponse:
+        options = []
+
+        meta_from_field = from_table.foregin_columns.get(from_table_field)
+
+        result = await search_func(
+            session=session,
+            metainfo=foregin_table,
+            field=meta_from_field.options.foregin.selected_foregin_field,
+            search=q,
+            ilike=True,
+        )
+
+        [
+            options.append(
+                {
+                    "value": str(getattr(i, foregin_field)),
+                    "label": str(
+                        getattr(
+                            i, meta_from_field.options.foregin.selected_foregin_field
+                        )
+                    ),
+                }
+            )
+            for i in result.data
+        ]
+
+        return forms.SelectSearchResponse(options=options)

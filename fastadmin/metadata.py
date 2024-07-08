@@ -2,13 +2,14 @@ from fastadmin.model.sqlmodel2pydantic import SQLModel2Pydantic
 from fastadmin.model.attributes import ModelAttributes
 from fastadmin.model.db_manager import ModelDB, Result
 from fastadmin.model.actions import ModelActions
-from fastadmin.utils import types
 
 from fastadmin.utils.descriptor.clas import classproperty
 import fastadmin.utils.types as _tb
 
 from fastadmin.interface.pages import FastAdminPages
 from fastadmin.conf import FastAdminConfig
+
+from fastadmin.utils.func import patched_fastui_form
 
 from fastui import components as c, events as e
 
@@ -29,7 +30,7 @@ class FastAdminMeta(
     SQLModel2Pydantic,
     ModelDB,
 ):
-    __admin_metadata__: dict[str, "MetaInfo"] = {}
+    __admin_metadata: dict[str, "MetaInfo"] = {}
 
     def __init_subclass__(cls: type["DeclarativeBase"] | type["FastAdminMeta"]) -> None:
         super().__init_subclass__()
@@ -57,7 +58,7 @@ class FastAdminMeta(
                 permissions=FastAdminMeta._set_permissions(cls),
             )
 
-            FastAdminMeta.__admin_metadata__[cls.__tablename__] = data
+            FastAdminMeta.__admin_metadata[cls.__tablename__] = data
 
     @classmethod
     def _get_admin(cls) -> type["FastAdminMeta"]:
@@ -65,7 +66,7 @@ class FastAdminMeta(
 
     @classmethod
     def _get_first_home_object_link(cls):
-        metainfo: MetaInfo = next(iter(cls.__admin_metadata__.values()))
+        metainfo: MetaInfo = next(iter(cls.__admin_metadata.values()))
 
         return cls._get_home_link().format(table=metainfo.table_db_name)
 
@@ -123,31 +124,12 @@ class FastAdminMeta(
         return perms
 
     @classmethod
-    def call_check_permissions_funcion(cls, func_name: str):
-        async def check_permissions(
-            table: str,
-            access: types.AccessCredentials = _fa.Depends(
-                FastAdminConfig.admin_middleware.get_access_credentials
-            ),
-        ):
-            metainfo = cls.__get_metainfo__(table=table)
-            model = metainfo.table
-
-            session = model.get_session()
-
-            func: _t.Callable = getattr(model, func_name)
-
-            async with session() as session:
-                if (func(user=access, session=session, metainfo=metainfo)) is False:
-                    raise _fa.HTTPException(status_code=_fa.status.HTTP_423_LOCKED)
-
-        return check_permissions
-
-    @classmethod
     def __meta_set_columns__(cls, table: "sa.Table") -> dict[str, "TableColumn"]:
         columns = {}
 
         for column in table.columns:
+            dop_options: dict = column.doc if isinstance(column.doc, dict) else {}
+
             columns[column.name] = TableColumn(
                 name=column.name,
                 python_type=column.type.python_type,
@@ -156,9 +138,10 @@ class FastAdminMeta(
                 if column.default is not None
                 else None,
                 unique=column.unique,
-                doc=column.doc,
                 foregin_key=cls._set_foregin_key(column),
                 primary_key=column.primary_key,
+                column_from_table=table.name,
+                options=ColumnOptions(**dop_options),
             )
 
         return columns
@@ -168,7 +151,30 @@ class FastAdminMeta(
         return hasattr(cls, "metadata") and issubclass(cls, DeclarativeBase)
 
     @classmethod
-    def _set_foregin_key(cls, column: "sa.Column") -> _t.Optional["ForeginKey"]:
+    def _get_form(cls: type["FastAdminMeta"], edit: bool = False):
+        async def get_form(
+            request: _fa.Request,
+            table: type["FastAdminMeta"] = _fa.Depends(cls._get_table),
+        ):
+            form = table.which_model("form")
+
+            yield patched_fastui_form(form).dependency(request)
+
+        async def get_edit_form(
+            request: _fa.Request,
+            table: type["FastAdminMeta"] = _fa.Depends(cls._get_table),
+        ):
+            edit_form = table.which_model("edit_form")
+
+            yield patched_fastui_form(edit_form).dependency(request)
+
+        return get_edit_form if edit else get_form
+
+    @classmethod
+    def _set_foregin_key(
+        cls,
+        column: "sa.Column",
+    ) -> _t.Optional["ForeginKey"]:
         foregin_keys = list(column.foreign_keys)
 
         if foregin_keys:
@@ -176,27 +182,30 @@ class FastAdminMeta(
 
             table, field = foregin_key.target_fullname.split(".", 1)
 
-            return ForeginKey(table_name=table, field_name=field)
+            return ForeginKey(
+                table_name=table,
+                field_name=field,
+            )
 
     @classmethod
     def _get_table(cls, table: _tb.TableStrName) -> type["FastAdminMeta"]:
-        return cls.__admin_metadata__.get(table).table
+        return cls.__admin_metadata.get(table).table
 
     @classmethod
     def __get_metainfo__(cls, table: _tb.TableStrName) -> "MetaInfo":
-        return cls.__admin_metadata__.get(table)
+        return cls.__admin_metadata.get(table)
 
     @classproperty
     def __meta_keys__(cls) -> tuple[str]:
-        return tuple(cls.__admin_metadata__.keys())
+        return tuple(cls.__admin_metadata.keys())
 
     @classproperty
     def __meta_values__(cls) -> tuple["MetaInfo"]:
-        return tuple(cls.__admin_metadata__.values())
+        return tuple(cls.__admin_metadata.values())
 
     @classmethod
     def __meta_items__(cls) -> list[tuple[str, "MetaInfo"]]:
-        return list(cls.__admin_metadata__.items())
+        return list(cls.__admin_metadata.items())
 
     @classmethod
     async def authefication(
@@ -269,6 +278,15 @@ class FastAdminMeta(
         return response
 
 
+class ForeginOptions(p.BaseModel):
+    selected_foregin_field: _t.Optional[str] = None
+
+
+class ColumnOptions(p.BaseModel):
+    title: _t.Optional[str] = None
+    foregin: _t.Optional[ForeginOptions] = None
+
+
 class ForeginKey(p.BaseModel):
     table_name: str
     field_name: str
@@ -282,7 +300,8 @@ class TableColumn(p.BaseModel):
     unique: _t.Optional[bool] = None
     primary_key: bool = False
     foregin_key: _t.Optional[ForeginKey] = None
-    doc: _t.Optional[str] = None
+    options: ColumnOptions
+    column_from_table: str
 
 
 class MetaInfo(p.BaseModel):
