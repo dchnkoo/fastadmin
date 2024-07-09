@@ -40,7 +40,7 @@ class User(Base, FastAdminMeta):
     worker: Mapped[int] = mapped_column(
         sa.ForeignKey("some_worker.id", link_to_name=True),
         nullable=False,
-        doc={"title": "Работодавець", "foregin": {"selected_foregin_field": "name"}},
+        doc={"foregin": {"selected_foregin_field": "name"}},
         primary_key=True,
     )
 

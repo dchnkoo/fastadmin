@@ -372,6 +372,49 @@ async def add_data(
         return [c.FireEvent(event=e.BackEvent(), message="Added!")]
 
 
+@delete.post(urls.DELETE)
+async def delete_item(
+    table: str,
+    field: str,
+    value: str,
+    model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
+    metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
+    access: types.AccessCredentials = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials
+    ),
+):
+    session = model.get_session()
+
+    meta_field = metainfo.columns.get(field)
+
+    async with session() as session:
+        where = getattr(model, meta_field.name) == meta_field.python_type(value)
+
+        data = await model.get(session=session, where=where, all_=False, to_dict=True)
+
+        await model.before_delete(
+            table=table,
+            field=field,
+            value=value,
+            metainfo=metainfo,
+            access=access,
+            data=data,
+        )
+
+        await model.delete(session=session, where=where)
+
+        await model.after_delete(
+            table=table,
+            field=field,
+            value=value,
+            metainfo=metainfo,
+            access=access,
+            data=data,
+        )
+
+    return [c.FireEvent(event=e.BackEvent(), message="Deleted!")]
+
+
 ui.include_router(add)
 ui.include_router(edit)
 ui.include_router(delete)

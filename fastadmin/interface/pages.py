@@ -131,6 +131,22 @@ class FastAdminPages(comp.FastAdminComponents):
             ),
         ]
 
+        await cls.set_delete_button(
+            session=session,
+            metainfo=metainfo,
+            access=access,
+            body=body,
+            table=table,
+            field=field,
+            value=value,
+            delete_url=FastAdminConfig.api_root_url
+            + cls._get_urls().DELETE.format(
+                table=table,
+                field=field,
+                value=value,
+            ),
+        )
+
         if await cls.check_edit_permissions(
             user=access, session=session, metainfo=metainfo
         ):

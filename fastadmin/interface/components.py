@@ -52,7 +52,8 @@ class FastAdminComponents:
                     c.Button(
                         text="Logout",
                         on_click=e.PageEvent(name="exit"),
-                        class_name="btn btn-danger",
+                        class_name="btn btn-light",
+                        html_type="button",
                     )
                 ],
             )
@@ -236,3 +237,69 @@ class FastAdminComponents:
         ]
 
         return forms.SelectSearchResponse(options=options)
+
+    @classmethod
+    async def set_delete_button(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        metainfo: "MetaInfo",
+        access: "AccessCredetinalsAdmin",
+        body: list[c.AnyComponent],
+        table: str,
+        field: str,
+        value: str,
+        delete_url: str,
+        modal_open_trigger_name: str = "delete",
+        delete_item_trigger: str = "delete-item",
+    ):
+        if await cls.check_delete_permissions(
+            user=access, session=session, metainfo=metainfo
+        ):
+            body.extend(
+                [
+                    c.Button(
+                        text="Delete",
+                        on_click=e.PageEvent(name=modal_open_trigger_name),
+                        class_name="btn btn-danger m-2",
+                        html_type="button",
+                    ),
+                    c.Modal(
+                        title="Confirm operation",
+                        body=[
+                            c.Text(
+                                text=f"Are you sure you wanna delete item with {field} - {value} from {table}?"
+                            ),
+                            c.Form(
+                                submit_url=delete_url,
+                                footer=[],
+                                submit_trigger=e.PageEvent(name=delete_item_trigger),
+                                form_fields=[
+                                    c.FormFieldInput(
+                                        name="",
+                                        title="",
+                                        html_type="hidden",
+                                        initial="data",
+                                    )
+                                ],
+                            ),
+                        ],
+                        open_trigger=e.PageEvent(name=modal_open_trigger_name),
+                        footer=[
+                            c.Button(
+                                text="Cancel",
+                                on_click=e.PageEvent(
+                                    name=modal_open_trigger_name, clear=True
+                                ),
+                                html_type="button",
+                                named_style="secondary",
+                            ),
+                            c.Button(
+                                text="Delete",
+                                on_click=e.PageEvent(name=delete_item_trigger),
+                                html_type="button",
+                                class_name="btn btn-danger",
+                            ),
+                        ],
+                    ),
+                ]
+            )

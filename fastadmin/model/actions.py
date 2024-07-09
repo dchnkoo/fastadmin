@@ -110,3 +110,27 @@ class ModelActions(SQLModel2Pydantic):
         data: dict,
     ) -> None:
         ...
+
+    @classmethod
+    async def before_delete(
+        cls: type["FastAdminMeta"],
+        table: str,
+        field: str,
+        value: str,
+        metainfo: "MetaInfo",
+        access: types.AccessCredentials,
+        data: dict,
+    ):
+        ...
+
+    @classmethod
+    async def after_delete(
+        cls: type["FastAdminMeta"],
+        table: str,
+        field: str,
+        value: str,
+        metainfo: "MetaInfo",
+        access: types.AccessCredentials,
+        data: dict,
+    ):
+        ...
