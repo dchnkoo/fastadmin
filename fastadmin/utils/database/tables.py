@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import ARRAY, String
+import sqlalchemy as sa
 
 from fastadmin.utils.descriptor.clas import classproperty
 from fastadmin.metadata import FastAdminMeta
@@ -9,6 +9,13 @@ from fastui import events as e, components as c
 
 from enum import Enum
 import pydantic as p
+import typing as _t
+
+
+def prem_validator(cls, v):
+    if isinstance(v, list):
+        return v
+    return [v]
 
 
 class Permissions:
@@ -20,7 +27,14 @@ class Permissions:
 
         return {
             "exclude": ["id"],
-            "fields": {"permissions": (list[perm_enum], p.Field())},
+            "fields": {
+                "permissions": (_t.Optional[list[perm_enum]], p.Field(default=[]))
+            },
+            "validators": {
+                "premissions_validator": p.field_validator(
+                    "permissions", check_fields=False, mode="before"
+                )(prem_validator)
+            },
         }
 
     @classproperty
@@ -30,12 +44,13 @@ class Permissions:
         return {
             "exclude": get_form["exclude"] + ["password"],
             "fields": {"permissions": get_form["fields"]["permissions"]},
+            "validators": get_form["validators"],
         }
 
     is_admin: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_super: Mapped[bool] = mapped_column(nullable=False, default=False)
     permissions: Mapped[list[str]] = mapped_column(
-        ARRAY(String),
+        sa.ARRAY(sa.String),
         nullable=True,
         default=[],
     )

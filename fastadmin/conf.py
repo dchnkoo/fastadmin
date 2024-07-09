@@ -6,6 +6,7 @@ import typing as _t
 if _t.TYPE_CHECKING:
     from fastadmin.middleware.jwt import FastAdminJWT
     from sqlalchemy.orm import DeclarativeBase
+    from fastadmin.utils.words import AdminWords
 
 
 SECONDS: _t.TypeAlias = int
@@ -36,3 +37,5 @@ class FastAdminConfig:
     admin_middleware: type["FastAdminJWT"]
 
     auth_model: type[_p.BaseModel]
+
+    words: "AdminWords"

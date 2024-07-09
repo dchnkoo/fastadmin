@@ -98,32 +98,21 @@ async def home_page(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ) -> list[c.AnyComponent]:
-    try:
-        admin_model: p.BaseModel = model.which_model("admin")
+    admin_model: p.BaseModel = model.which_model("admin")
 
-        session = model.get_session()
+    session = model.get_session()
 
-        async with session() as session:
-            return await model.home(
-                pydantic_model=admin_model,
-                metainfo=metainfo,
-                table_name=table,
-                session=session,
-                search=search,
-                access=access,
-                field=field,
-                page=page,
-            )
-
-    except Exception as exc:
-        print(exc)
-        return [
-            c.Error(
-                title="Error",
-                description=str(exc),
-                status_code=fa.status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        ]
+    async with session() as session:
+        return await model.home(
+            pydantic_model=admin_model,
+            metainfo=metainfo,
+            table_name=table,
+            session=session,
+            search=search,
+            access=access,
+            field=field,
+            page=page,
+        )
 
 
 @ui.get(
@@ -267,37 +256,43 @@ async def edit_data(
         session = model.get_session()
 
         async with session() as session:
-            await model.before_saving(
-                session=session,
-                signal="edit_form",
-                data=data,
-                access=access,
-                table_name=table,
-                model=item,
-                field=field,
-                value=value,
-                metainfo=metainfo,
-            )
+            try:
+                await model.before_saving(
+                    session=session,
+                    signal="edit_form",
+                    data=data,
+                    access=access,
+                    table_name=table,
+                    model=item,
+                    field=field,
+                    value=value,
+                    metainfo=metainfo,
+                )
 
-            meta_field = metainfo.columns.get(field)
+                meta_field = metainfo.columns.get(field)
 
-            new_data = await model.update(
-                session=session,
-                where=getattr(model, meta_field.name) == meta_field.python_type(value),
-                **data,
-            )
+                new_data = await model.update(
+                    session=session,
+                    where=getattr(model, meta_field.name)
+                    == meta_field.python_type(value),
+                    **data,
+                )
 
-            await model.after_saving(
-                session=session,
-                signal="edit_form",
-                data=new_data,
-                access=access,
-                table_name=table,
-                model=item,
-                field=field,
-                value=value,
-                metainfo=metainfo,
-            )
+                await model.after_saving(
+                    session=session,
+                    signal="edit_form",
+                    data=new_data,
+                    access=access,
+                    table_name=table,
+                    model=item,
+                    field=field,
+                    value=value,
+                    metainfo=metainfo,
+                )
+            except Exception as exc:
+                raise fa.HTTPException(
+                    status_code=fa.status.HTTP_400_BAD_REQUEST, detail=str(exc)
+                )
 
         return [c.FireEvent(event=e.BackEvent(), message="Edited!")]
 
@@ -347,27 +342,33 @@ async def add_data(
         session = model.get_session()
 
         async with session() as session:
-            await model.before_saving(
-                session=session,
-                signal="form",
-                data=data,
-                access=access,
-                table_name=table,
-                model=item,
-                metainfo=metainfo,
-            )
+            try:
+                await model.before_saving(
+                    session=session,
+                    signal="form",
+                    data=data,
+                    access=access,
+                    table_name=table,
+                    model=item,
+                    metainfo=metainfo,
+                )
 
-            new_data = await model.insert(session=session, **data)
+                new_data = await model.insert(session=session, **data)
 
-            await model.after_saving(
-                session=session,
-                signal="form",
-                data=new_data,
-                access=access,
-                table_name=table,
-                model=item,
-                metainfo=metainfo,
-            )
+                await model.after_saving(
+                    session=session,
+                    signal="form",
+                    data=new_data,
+                    access=access,
+                    table_name=table,
+                    model=item,
+                    metainfo=metainfo,
+                )
+
+            except Exception as exc:
+                raise fa.HTTPException(
+                    status_code=fa.status.HTTP_400_BAD_REQUEST, detail=str(exc)
+                )
 
         return [c.FireEvent(event=e.BackEvent(), message="Added!")]
 
@@ -392,25 +393,31 @@ async def delete_item(
 
         data = await model.get(session=session, where=where, all_=False, to_dict=True)
 
-        await model.before_delete(
-            table=table,
-            field=field,
-            value=value,
-            metainfo=metainfo,
-            access=access,
-            data=data,
-        )
+        try:
+            await model.before_delete(
+                table=table,
+                field=field,
+                value=value,
+                metainfo=metainfo,
+                access=access,
+                data=data,
+            )
 
-        await model.delete(session=session, where=where)
+            await model.delete(session=session, where=where)
 
-        await model.after_delete(
-            table=table,
-            field=field,
-            value=value,
-            metainfo=metainfo,
-            access=access,
-            data=data,
-        )
+            await model.after_delete(
+                table=table,
+                field=field,
+                value=value,
+                metainfo=metainfo,
+                access=access,
+                data=data,
+            )
+
+        except Exception as exc:
+            raise fa.HTTPException(
+                status_code=fa.status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            )
 
     return [c.FireEvent(event=e.BackEvent(), message="Deleted!")]
 

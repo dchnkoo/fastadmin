@@ -7,6 +7,7 @@ import typing as _t
 
 if _t.TYPE_CHECKING:
     from fastadmin.middleware.jwt import FastAdminJWT
+    from fastadmin.utils.words import AdminWords
     from sqlalchemy.orm import DeclarativeBase
 
 
@@ -87,6 +88,7 @@ class FastAdmin(_fa.FastAPI):
             _t.Callable[[], _t.Coroutine[_t.Any, _t.Any, str]], _t.LiteralString
         ],
         sqlalchemy_metadata: _t.Optional[type["DeclarativeBase"]],
+        admin_panel_words: _t.Optional["AdminWords"] = None,
         admin_table_name: str = "admin_user",
         admin_middleware: _t.Optional[type["FastAdminJWT"]] = None,
         auth_model: type[_p.BaseModel] = Autheficate,
@@ -159,6 +161,14 @@ class FastAdmin(_fa.FastAPI):
 
         else:
             FastAdminConfig.admin_middleware = self.admin_middleware = admin_middleware
+
+        if admin_panel_words is not None:
+            FastAdminConfig.words = self.admin_panel_words = admin_panel_words
+
+        else:
+            from fastadmin.utils.words import AdminWords
+
+            FastAdminConfig.words = self.admin_panel_words = AdminWords()
 
         from fastadmin.ui.main import ui, auth
 

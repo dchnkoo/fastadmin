@@ -34,8 +34,6 @@ class Token(p.BaseModel):
 
 
 class AbsractJWTMiddleware(ABC, _StarletteHTTP):
-    secret = _config.secret_token
-
     access = Token(
         life=_config.access_token_life,
         name=_config.access_token_name,
@@ -48,12 +46,14 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
         algorithm="HS512",
     )
 
-    @classmethod
-    async def get_secret(cls) -> str:
-        if callable(cls.secret):
-            return await cls.secret()
+    @staticmethod
+    async def get_secret() -> str:
+        secret = _config.secret_token
 
-        return cls.secret
+        if callable(secret):
+            return await secret()
+
+        return secret
 
     @classmethod
     async def get_token(cls, algorithm: _t.LiteralString, **playload) -> str:

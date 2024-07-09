@@ -50,7 +50,7 @@ class FastAdminComponents:
             c.Link(
                 components=[
                     c.Button(
-                        text="Logout",
+                        text=FastAdminConfig.words.logout,
                         on_click=e.PageEvent(name="exit"),
                         class_name="btn btn-light",
                         html_type="button",
@@ -73,17 +73,17 @@ class FastAdminComponents:
     def exit_event(cls: type["FastAdminMeta"]) -> list[c.AnyComponent]:
         return [
             c.Modal(
-                title="Logout",
-                body=[c.Text(text="Are you sure do you want to logout?")],
+                title=FastAdminConfig.words.logout,
+                body=[c.Text(text=FastAdminConfig.words.logout_question)],
                 open_trigger=e.PageEvent(name="exit"),
                 footer=[
                     c.Button(
-                        text="Cancel",
+                        text=FastAdminConfig.words.cancel,
                         on_click=e.PageEvent(name="exit", clear=True),
                         named_style="secondary",
                     ),
                     c.Button(
-                        text="Logout",
+                        text=FastAdminConfig.words.logout,
                         on_click=e.PageEvent(name="logout"),
                         class_name="btn btn-danger",
                     ),
@@ -138,7 +138,11 @@ class FastAdminComponents:
         body: list[c.AnyComponent],
     ):
         components = [
-            c.Heading(text="Additional Information", level=4, class_name="+ mt-2"),
+            c.Heading(
+                text=FastAdminConfig.words.additional_information,
+                level=4,
+                class_name="+ mt-2",
+            ),
         ]
 
         for info in cls.__meta_values__:
@@ -258,16 +262,18 @@ class FastAdminComponents:
             body.extend(
                 [
                     c.Button(
-                        text="Delete",
+                        text=FastAdminConfig.words.delete,
                         on_click=e.PageEvent(name=modal_open_trigger_name),
                         class_name="btn btn-danger m-2",
                         html_type="button",
                     ),
                     c.Modal(
-                        title="Confirm operation",
+                        title=FastAdminConfig.words.confirm_operation,
                         body=[
                             c.Text(
-                                text=f"Are you sure you wanna delete item with {field} - {value} from {table}?"
+                                text=FastAdminConfig.words.operation_delete_question.format(
+                                    field=field, value=value, table=table
+                                )
                             ),
                             c.Form(
                                 submit_url=delete_url,
@@ -286,7 +292,7 @@ class FastAdminComponents:
                         open_trigger=e.PageEvent(name=modal_open_trigger_name),
                         footer=[
                             c.Button(
-                                text="Cancel",
+                                text=FastAdminConfig.words.cancel,
                                 on_click=e.PageEvent(
                                     name=modal_open_trigger_name, clear=True
                                 ),
@@ -294,7 +300,7 @@ class FastAdminComponents:
                                 named_style="secondary",
                             ),
                             c.Button(
-                                text="Delete",
+                                text=FastAdminConfig.words.delete,
                                 on_click=e.PageEvent(name=delete_item_trigger),
                                 html_type="button",
                                 class_name="btn btn-danger",

@@ -80,7 +80,7 @@ class FastAdminPages(comp.FastAdminComponents):
         ):
             body.append(
                 c.Button(
-                    text="Add",
+                    text=FastAdminConfig.words.add,
                     on_click=e.GoToEvent(
                         url=FastAdminConfig.api_path_strip
                         + cls._get_urls().FORM.format(table=table_name)
@@ -122,7 +122,10 @@ class FastAdminPages(comp.FastAdminComponents):
         )
 
         body = [
-            c.Link(components=[c.Text(text="Back")], on_click=e.BackEvent()),
+            c.Link(
+                components=[c.Text(text=FastAdminConfig.words.back)],
+                on_click=e.BackEvent(),
+            ),
             c.Details(
                 data=pydantic_model(**detail.data),
                 fields=cls.set_display_lookups_details(
@@ -152,7 +155,7 @@ class FastAdminPages(comp.FastAdminComponents):
         ):
             body.append(
                 c.Button(
-                    text="Edit",
+                    text=FastAdminConfig.words.edit,
                     on_click=e.GoToEvent(
                         url=FastAdminConfig.api_path_strip
                         + cls._get_urls().EDIT.format(
@@ -190,9 +193,17 @@ class FastAdminPages(comp.FastAdminComponents):
         return cls.page_frame(
             body=[
                 c.Heading(
-                    text=f"Add to {metainfo.table_title if metainfo.table_title else metainfo.table_class_name}"
+                    text=FastAdminConfig.words.form_page_heading
+                    % (
+                        metainfo.table_title
+                        if metainfo.table_title
+                        else metainfo.table_class_name,
+                    )
                 ),
-                c.Link(components=[c.Text(text="Back")], on_click=e.BackEvent()),
+                c.Link(
+                    components=[c.Text(text=FastAdminConfig.words.back)],
+                    on_click=e.BackEvent(),
+                ),
                 c.ModelForm(
                     model=pydantic_model,
                     display_mode="page",
@@ -242,9 +253,17 @@ class FastAdminPages(comp.FastAdminComponents):
         return cls.page_frame(
             body=[
                 c.Heading(
-                    text=f"Edit {metainfo.table_title if metainfo.table_title else metainfo.table_class_name}"
+                    text=FastAdminConfig.words.edit_page_heading
+                    % (
+                        metainfo.table_title
+                        if metainfo.table_title
+                        else metainfo.table_class_name,
+                    )
                 ),
-                c.Link(components=[c.Text(text="Back")], on_click=e.BackEvent()),
+                c.Link(
+                    components=[c.Text(text=FastAdminConfig.words.back)],
+                    on_click=e.BackEvent(),
+                ),
                 c.ModelForm(
                     model=pydantic_model,
                     initial=data.data,
