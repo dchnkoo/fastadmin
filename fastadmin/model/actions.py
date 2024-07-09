@@ -134,3 +134,13 @@ class ModelActions(SQLModel2Pydantic):
         data: dict,
     ):
         ...
+
+    @staticmethod
+    def get_enums_params_values(request: _fa.Request) -> dict[str, str]:
+        params = {}
+
+        for key, value in request.query_params.items():
+            if key.startswith("enum"):
+                params[key.removeprefix("enum_")] = value
+
+        return params

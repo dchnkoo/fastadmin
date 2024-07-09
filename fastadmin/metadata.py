@@ -17,6 +17,7 @@ import hashlib as _hash
 import fastapi as _fa
 import pydantic as p
 import typing as _t
+import enum
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -56,6 +57,11 @@ class FastAdminMeta(
                 },
                 columns=columns,
                 permissions=FastAdminMeta._set_permissions(cls),
+                enum_columns={
+                    k: v
+                    for k, v in columns.items()
+                    if issubclass(v.python_type, enum.Enum)
+                },
             )
 
             FastAdminMeta.__admin_metadata[cls.__tablename__] = data
@@ -312,5 +318,6 @@ class MetaInfo(p.BaseModel):
     primary_columns: dict[str, TableColumn]
     foregin_columns: dict[str, TableColumn] = {}
     unique_columns: dict[str, TableColumn] = {}
+    enum_columns: dict[str, TableColumn] = {}
     columns: dict[str, TableColumn]
     permissions: _t.List[str] = []

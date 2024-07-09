@@ -16,6 +16,7 @@ async def search_func(
     metainfo: "MetaInfo",
     field: _t.Optional[str],
     search: _t.Optional[str],
+    enums: dict[str, str] = {},
     ilike: bool = False,
     **kw,
 ):
@@ -44,6 +45,13 @@ async def search_func(
                 where_or.append(
                     sa.cast(getattr(table, key), sa.String).ilike(f"%{word}%")
                 )
+
+    for name, value in enums.items():
+        meta_enum_column = metainfo.enum_columns.get(name)
+
+        where.append(
+            getattr(table, meta_enum_column.name) == meta_enum_column.python_type(value)
+        )
 
     return await table.get(
         session=session, where=tuple(where), where_or=tuple(where_or), **kw

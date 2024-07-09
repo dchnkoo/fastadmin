@@ -32,7 +32,6 @@ class FastAdminComponents:
                     c.Page(components=body),
                     *right,
                 ],
-                class_name="grid gap-4",
             ),
             *footer,
         ]
@@ -309,3 +308,45 @@ class FastAdminComponents:
                     ),
                 ]
             )
+
+    @classmethod
+    def generate_filters(
+        cls, metainfo: "MetaInfo", enums: dict[str, str]
+    ) -> list[c.AnyComponent]:
+        filters = []
+
+        if metainfo.enum_columns:
+            for name, column in metainfo.enum_columns.items():
+                value = enums.get(name, None)
+                model_name = "enum_" + name
+
+                model = p.create_model(
+                    model_name,
+                    **{
+                        model_name: (
+                            _t.Optional[column.python_type],
+                            p.Field(
+                                default=value,
+                                title=column.options.title
+                                if column.options.title
+                                else column.name.title(),
+                            ),
+                        )
+                    },
+                )
+
+                filters.extend(
+                    [
+                        c.ModelForm(
+                            submit_on_change=True,
+                            submit_url=".",
+                            method="GOTO",
+                            model=model,
+                            class_name="row row-cols-4 align-items-center justify-content-start",
+                            initial={model_name: value},
+                            footer=[],
+                        )
+                    ]
+                )
+
+        return filters

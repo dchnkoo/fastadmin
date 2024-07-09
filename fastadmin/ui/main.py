@@ -89,6 +89,7 @@ async def exit(
 )
 async def home_page(
     table: str,
+    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     field: _t.Optional[str] = None,
@@ -102,6 +103,8 @@ async def home_page(
 
     session = model.get_session()
 
+    enums = model.get_enums_params_values(request=request)
+
     async with session() as session:
         return await model.home(
             pydantic_model=admin_model,
@@ -112,6 +115,7 @@ async def home_page(
             access=access,
             field=field,
             page=page,
+            enums=enums,
         )
 
 

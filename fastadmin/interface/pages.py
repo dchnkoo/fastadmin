@@ -35,12 +35,14 @@ class FastAdminPages(comp.FastAdminComponents):
         search: _t.Optional[str],
         page: int,
         access: "AccessCredetinalsAdmin",
+        enums: dict[str, str],
     ) -> list[c.AnyComponent]:
         data = await search_func(
             session=session,
             metainfo=metainfo,
             field=field,
             search=search,
+            enums=enums,
             count=True,
             to_dict=True,
         )
@@ -57,13 +59,27 @@ class FastAdminPages(comp.FastAdminComponents):
             c.LinkList(
                 links=cls._get_home_links(), mode="tabs", class_name="+ mt-2 mb-4"
             ),
-            c.ModelForm(
-                model=SearchInput,
-                initial={"search": search},
-                method="GOTO",
-                submit_on_change=True,
-                display_mode="inline",
-                submit_url=".",
+            c.Div(
+                components=[
+                    c.Div(
+                        components=[
+                            *cls.generate_filters(metainfo=metainfo, enums=enums),
+                        ],
+                    ),
+                    c.Div(
+                        components=[
+                            c.ModelForm(
+                                model=SearchInput,
+                                initial={"search": search},
+                                method="GOTO",
+                                submit_on_change=True,
+                                submit_url=".",
+                                class_name="row row-cols-4 align-items-center justify-content-end",
+                                footer=[],
+                            ),
+                        ],
+                    ),
+                ],
             ),
             *cls.table_with_pagination(
                 page=page,
@@ -91,7 +107,9 @@ class FastAdminPages(comp.FastAdminComponents):
 
         return cls.page_frame(
             body=body,
-            left=cls.exit_event(),
+            left=[
+                *cls.exit_event(),
+            ],
             heading=[
                 *cls.header(
                     title=FastAdminConfig.default_title,

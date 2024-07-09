@@ -37,8 +37,6 @@ class Worker(FastAdminMeta, Base):
 class User(Base, FastAdminMeta):
     __tablename__ = "some_user"
 
-    __title__ = "Користувач"
-
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(nullable=True)
 
