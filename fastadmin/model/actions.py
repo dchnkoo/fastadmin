@@ -2,16 +2,21 @@ from fastadmin.model.sqlmodel2pydantic import SQLModel2Pydantic
 from fastadmin.conf import FastAdminConfig
 from fastadmin.utils import types
 
+import starlette.datastructures as starlette
 import fastapi as _fa
 import sqlalchemy as sa
 import pydantic as p
 import typing as _t
+import base64
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import FastAdminMeta, MetaInfo
     from fastadmin.middleware.jwt import AccessCredetinalsAdmin
     from sqlalchemy.ext.asyncio import AsyncSession
     from pydantic import BaseModel
+
+
+T = _t.TypeVar("T")
 
 
 class ModelActions(SQLModel2Pydantic):
@@ -76,6 +81,36 @@ class ModelActions(SQLModel2Pydantic):
         return (
             user.is_super or ("delete:" + cls.__name__ in user.permissions)
         ) and cls.can_delete
+
+    @staticmethod
+    def convert_integerstr_to_int(data: dict[str, T], ignore_fields: list[str]) -> None:
+        for key, value in data.items():
+            if (
+                ("id" in key) or (isinstance(value, str) and value.isdigit())
+            ) and key not in ignore_fields:
+                data[key] = int(value)
+
+    @staticmethod
+    async def convert_images_to_base64str(
+        data: dict[str, T | starlette.UploadFile | list[starlette.UploadFile]]
+    ) -> None:
+        convert: _t.Callable[[starlette.UploadFile]] = lambda image: (  # noqa E731
+            image.content_type,
+            base64.b64encode(value.file.read()).decode(),
+            image.filename,
+            image.size,
+        )
+
+        for key, value in data.items():
+            if isinstance(value, starlette.UploadFile):
+                data[key] = convert(value)
+
+            elif isinstance(value, list) and all(
+                isinstance(item, starlette.UploadFile) for item in value
+            ):
+                bytes_list = [convert(item) for item in value]
+
+                data[key] = bytes_list
 
     @classmethod
     async def before_saving(

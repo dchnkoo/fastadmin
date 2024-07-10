@@ -12,6 +12,11 @@ from fastadmin import FastAdmin
 
 from enum import Enum, StrEnum
 
+from fastui import forms  # noqa F401
+import typing as _t  # noqa F401
+import fastapi as _fa  # noqa F401
+import pydantic as p  # noqa F401
+
 
 class Base(DeclarativeBase):
     ...
@@ -50,7 +55,9 @@ class User(Base, FastAdminMeta):
         doc={"foregin": {"selected_foregin_field": "name"}},
     )
 
-    form = {"exclude": ["id"]}
+    form = {
+        "exclude": ["id"],
+    }
 
     edit_form = {"exclude": form["exclude"]}
 
