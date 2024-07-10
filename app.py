@@ -119,6 +119,8 @@ words = AdminWords(
     edit="Редагувати",
     form_page_heading="Додати до %s",
     edit_page_heading="Редагувати %s",
+    search="Пошук",
+    filter_text="Фільтри",
 )
 
 app = FastAdmin(

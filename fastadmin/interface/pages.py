@@ -14,15 +14,6 @@ if _t.TYPE_CHECKING:
     from fastadmin.middleware.jwt import AccessCredetinalsAdmin
 
 
-class SearchInput(p.BaseModel):
-    search: _t.Optional[str] = p.Field(
-        default=None,
-        json_schema_extra={
-            "placeholder": "Search..",
-        },
-    )
-
-
 class FastAdminPages(comp.FastAdminComponents):
     @classmethod
     async def home(
@@ -48,6 +39,15 @@ class FastAdminPages(comp.FastAdminComponents):
             count=True,
             to_dict=True,
         )
+
+        class SearchInput(p.BaseModel):
+            search: _t.Optional[str] = p.Field(
+                default=None,
+                json_schema_extra={
+                    "placeholder": "Search..",
+                },
+                title=FastAdminConfig.words.search,
+            )
 
         if data.count is None:
             data.count = 0
