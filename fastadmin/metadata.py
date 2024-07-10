@@ -35,19 +35,24 @@ class FastAdminMeta(
 ):
     __admin_metadata: dict[str, "MetaInfo"] = {}
 
+    __sqlalchemy_tables__: list[tuple[type["FastAdminMeta"], sa.Table]] = []
+
     def __init_subclass__(cls: type["DeclarativeBase"] | type["FastAdminMeta"]) -> None:
         super().__init_subclass__()
 
         if hasattr(cls, "__table__"):
-            table = cls.__table__
+            FastAdminMeta.__sqlalchemy_tables__.append((cls, cls.__table__))
 
+    @classmethod
+    def __realize_meta__(cls) -> None:
+        for table_class, table in cls.__sqlalchemy_tables__:
             columns = FastAdminMeta.__meta_set_columns__(table)
 
             data = MetaInfo(
-                table=cls,
-                table_class_name=cls.__name__,
-                table_db_name=cls.__tablename__,
-                table_title=cls.__title__,
+                table=table_class,
+                table_class_name=table_class.__name__,
+                table_db_name=table_class.__tablename__,
+                table_title=table_class.__title__,
                 primary_columns={k: v for k, v in columns.items() if v.primary_key},
                 foregin_columns={
                     k: v for k, v in columns.items() if v.foregin_key is not None
@@ -58,7 +63,7 @@ class FastAdminMeta(
                     if v.unique is not None and v.unique is True
                 },
                 columns=columns,
-                permissions=FastAdminMeta._set_permissions(cls),
+                permissions=FastAdminMeta._set_permissions(table_class),
                 enum_columns={
                     k: v
                     for k, v in columns.items()
@@ -67,9 +72,10 @@ class FastAdminMeta(
                 bool_columns={
                     k: v for k, v in columns.items() if issubclass(v.python_type, bool)
                 },
+                hide_in_link=table_class.hide_in_link,
             )
 
-            FastAdminMeta.__admin_metadata[cls.__tablename__] = data
+            FastAdminMeta.__admin_metadata[table_class.__tablename__] = data
 
     @classmethod
     def _get_admin(cls) -> type["FastAdminMeta"]:
@@ -95,6 +101,7 @@ class FastAdminMeta(
                 + cls._get_home_link().format(table=i.table_db_name),
             )
             for i in cls.__meta_values__
+            if i.hide_in_link is False
         ]
 
     @classmethod
@@ -327,3 +334,4 @@ class MetaInfo(p.BaseModel):
     bool_columns: dict[str, TableColumn] = {}
     columns: dict[str, TableColumn]
     permissions: _t.List[str] = []
+    hide_in_link: bool

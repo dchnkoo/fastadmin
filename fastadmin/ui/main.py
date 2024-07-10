@@ -104,7 +104,7 @@ async def home_page(
         FastAdminMeta.get_params_values_with_prefix("bool_")
     ),
 ) -> list[c.AnyComponent]:
-    admin_model: p.BaseModel = model.which_model("admin")
+    admin_model: p.BaseModel = model._admin
 
     session = model.get_session()
 
@@ -140,7 +140,7 @@ async def details_page(
 ) -> list[c.AnyComponent]:
     session = model.get_session()
 
-    pydantic_model = model.which_model("admin")
+    pydantic_model = model._admin
 
     async with session() as session:
         return await model.details(
@@ -230,7 +230,7 @@ async def edit_form_page(
 ) -> list[c.AnyComponent]:
     session = model.get_session()
 
-    pydantic_model = model.which_model("edit_form")
+    pydantic_model = model._edit_form
 
     async with session() as session:
         return await model.edit_form_page(
@@ -320,7 +320,7 @@ async def form_page(
 ) -> list[c.AnyComponent]:
     session = model.get_session()
 
-    pydantic_model = model.which_model("form")
+    pydantic_model = model._form
 
     async with session() as session:
         return await model.form_page(

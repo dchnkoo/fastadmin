@@ -23,10 +23,7 @@ class FastAdminConfig:
 
     admin_table_name: str
     sqlalchemy_metadata: type["DeclarativeBase"] = None
-    secret_token: _t.Union[
-        _t.Callable[[], _t.Coroutine[_t.Any, _t.Any, str]], _t.LiteralString
-    ]
-    algorithm: _t.LiteralString = "SHA256"
+    secret_token: _t.Union[_t.Callable[[], _t.Coroutine[_t.Any, _t.Any, str]], str]
 
     access_token_life: SECONDS = 900
     refresh_token_life: SECONDS = 2_592_000

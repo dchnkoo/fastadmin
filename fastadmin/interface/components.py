@@ -169,36 +169,37 @@ class FastAdminComponents:
 
     @classmethod
     def set_display_lookups_details(
-        cls: type["FastAdminMeta"], metainfo: "MetaInfo", data: dict
+        cls: type["FastAdminMeta"],
+        metainfo: "MetaInfo",
+        pydantic_model: type[p.BaseModel],
+        data: dict,
     ) -> list[c.display.DisplayLookup]:
         lookups = []
 
-        exclude = []
+        list_keys = tuple(metainfo.columns.keys())
 
-        for column in metainfo.foregin_columns.values():
-            lookup = c.display.DisplayLookup(
-                field=column.name,
-                on_click=e.GoToEvent(
-                    url=FastAdminConfig.api_path_strip
-                    + cls._get_urls().DETAILS.format(
-                        table=column.foregin_key.table_name,
-                        field=column.foregin_key.field_name,
-                        value=data.get(column.name),
+        for column_name in pydantic_model.__fields__.keys():
+            meta_field = metainfo.columns.get(column_name)
+            index = list_keys.index(column_name)
+
+            if column_name in metainfo.foregin_columns:
+                lookup = c.display.DisplayLookup(
+                    field=meta_field.name,
+                    on_click=e.GoToEvent(
+                        url=FastAdminConfig.api_path_strip
+                        + cls._get_urls().DETAILS.format(
+                            table=meta_field.foregin_key.table_name,
+                            field=meta_field.foregin_key.field_name,
+                            value=data.get(meta_field.name),
+                        ),
+                        target="_blank",
                     ),
-                    target="_blank",
-                ),
-            )
+                )
 
-            exclude.append(column.name)
-            lookups.append(lookup)
+                lookups.insert(index, lookup)
 
-        table_columns = list(metainfo.columns.values())
-
-        for column in table_columns:
-            if column.name not in exclude:
-                index = table_columns.index(column)
-
-                lookups.insert(index, c.display.DisplayLookup(field=column.name))
+            else:
+                lookups.insert(index, c.display.DisplayLookup(field=meta_field.name))
 
         return lookups
 

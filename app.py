@@ -37,6 +37,8 @@ class Worker(FastAdminMeta, Base):
 class User(Base, FastAdminMeta):
     __tablename__ = "some_user"
 
+    can_delete = False
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(nullable=True)
 
@@ -96,6 +98,8 @@ class OrderStatus(StrEnum):
 
 class Order(Base, FastAdminMeta):
     __tablename__ = "order"
+
+    hide_in_link = True
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     status: Mapped[OrderStatus] = mapped_column(

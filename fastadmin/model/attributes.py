@@ -338,3 +338,8 @@ class ModelAttributes:
     """
     if not data in table this message will be display on page.
     """
+
+    hide_in_link: bool = False
+    """
+    if value is True it doesn't will be shows in table links
+    """

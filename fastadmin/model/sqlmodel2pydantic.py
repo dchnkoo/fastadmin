@@ -74,10 +74,6 @@ class SQLModel2Pydantic:
             for k in meta_columns
         }
 
-    @staticmethod
-    def _set_pydantic_model_name(config: dict, metainfo: "MetaInfo"):
-        config["__model_name"] = metainfo.table_class_name
-
     @classmethod
     def generate_pydantic_model(
         cls: type["FastAdminMeta"],
@@ -88,8 +84,6 @@ class SQLModel2Pydantic:
         model_type: _tb.FastModels,
     ) -> p.BaseModel:
         config_dict = {}
-
-        cls._set_pydantic_model_name(config=config_dict, metainfo=metainfo)
 
         for name, options in columns.items():
             if name.startswith("custom_"):
@@ -129,4 +123,9 @@ class SQLModel2Pydantic:
 
             config_dict[name] = (column_type, column_field_config)
 
-        return p.create_model(__base__=base, __validators__=validators, **config_dict)
+        return p.create_model(
+            metainfo.table_class_name,
+            __base__=base,
+            __validators__=validators,
+            **config_dict,
+        )

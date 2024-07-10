@@ -84,9 +84,7 @@ class FastAdmin(_fa.FastAPI):
         self,
         *,
         sql_db_uri: types.URI_WITH_ASYNC_DRIVER,
-        secret_token: _t.Union[
-            _t.Callable[[], _t.Coroutine[_t.Any, _t.Any, str]], _t.LiteralString
-        ],
+        secret_token: _t.Union[_t.Callable[[], _t.Coroutine[_t.Any, _t.Any, str]], str],
         sqlalchemy_metadata: _t.Optional[type["DeclarativeBase"]],
         admin_panel_words: _t.Optional["AdminWords"] = None,
         admin_table_name: str = "admin_user",
@@ -170,6 +168,8 @@ class FastAdmin(_fa.FastAPI):
 
             FastAdminConfig.words = self.admin_panel_words = AdminWords()
 
+        self.set_models()
+
         from fastadmin.ui.main import ui, auth
 
         self.mount(path=api_root_url, app=auth)
@@ -178,3 +178,17 @@ class FastAdmin(_fa.FastAPI):
         from fastadmin.ui.main import main
 
         self.mount(path=path, app=main)
+
+    @staticmethod
+    def set_models() -> None:
+        from fastadmin.metadata import FastAdminMeta
+
+        FastAdminMeta.__realize_meta__()
+
+        for meta in FastAdminMeta.__meta_values__:
+            table: FastAdminMeta = meta.table
+
+            for model_type in _t.get_args(types.FastModels):
+                model = table.which_model(model_type)
+
+                setattr(table, "_" + model_type, model)

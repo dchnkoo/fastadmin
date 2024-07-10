@@ -51,7 +51,9 @@ class ModelActions(SQLModel2Pydantic):
         session: "AsyncSession",
         metainfo: "MetaInfo",
     ) -> bool:
-        return user.is_super or ("add:" + cls.__name__ in user.permissions)
+        return (
+            user.is_super or ("add:" + cls.__name__ in user.permissions)
+        ) and cls.can_add
 
     @classmethod
     async def check_edit_permissions(
@@ -60,7 +62,9 @@ class ModelActions(SQLModel2Pydantic):
         session: "AsyncSession",
         metainfo: "MetaInfo",
     ) -> bool:
-        return user.is_super or ("edit:" + cls.__name__ in user.permissions)
+        return (
+            user.is_super or ("edit:" + cls.__name__ in user.permissions)
+        ) and cls.can_edit
 
     @classmethod
     async def check_delete_permissions(
@@ -69,7 +73,9 @@ class ModelActions(SQLModel2Pydantic):
         session: "AsyncSession",
         metainfo: "MetaInfo",
     ) -> bool:
-        return user.is_super or ("delete:" + cls.__name__ in user.permissions)
+        return (
+            user.is_super or ("delete:" + cls.__name__ in user.permissions)
+        ) and cls.can_delete
 
     @classmethod
     async def before_saving(

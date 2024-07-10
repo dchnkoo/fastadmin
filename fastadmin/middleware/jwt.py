@@ -56,7 +56,7 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
         return secret
 
     @classmethod
-    async def get_token(cls, algorithm: _t.LiteralString, **playload) -> str:
+    async def get_token(cls, algorithm: str, **playload) -> str:
         secret = await cls.get_secret()
 
         token = _jwt.encode(playload, secret, algorithm)
@@ -74,9 +74,7 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
         ...
 
     @classmethod
-    async def check_token(
-        cls, token: str, algorithm: _t.LiteralString
-    ) -> dict[str, _t.Any]:
+    async def check_token(cls, token: str, algorithm: str) -> dict[str, _t.Any]:
         secret = await cls.get_secret()
 
         try:

@@ -95,7 +95,7 @@ class FastAdminPages(comp.FastAdminComponents):
                         class_name="col-sm",
                     ),
                 ],
-                class_name="container row justify-content-between",
+                class_name="container row align-items-end justify-content-between",
             ),
             *cls.table_with_pagination(
                 page=page,
@@ -163,7 +163,7 @@ class FastAdminPages(comp.FastAdminComponents):
             c.Details(
                 data=pydantic_model(**detail.data),
                 fields=cls.set_display_lookups_details(
-                    metainfo=metainfo, data=detail.data
+                    metainfo=metainfo, data=detail.data, pydantic_model=pydantic_model
                 ),
             ),
         ]
