@@ -310,9 +310,9 @@ class FastAdminComponents:
             )
 
     @classmethod
-    def generate_filters(
+    def generate_enum_filters(
         cls, metainfo: "MetaInfo", enums: dict[str, str]
-    ) -> list[c.AnyComponent]:
+    ) -> list[c.ModelForm]:
         filters = []
 
         if metainfo.enum_columns:
@@ -342,7 +342,50 @@ class FastAdminComponents:
                             submit_url=".",
                             method="GOTO",
                             model=model,
-                            class_name="row row-cols-4 align-items-center justify-content-start",
+                            class_name="d-block",
+                            initial={model_name: value},
+                            footer=[],
+                        )
+                    ]
+                )
+
+        return filters
+
+    @classmethod
+    def generate_bool_filters(
+        cls, metainfo: "MetaInfo", bool_data: dict[str, str]
+    ) -> list[c.ModelForm]:
+        filters = []
+
+        if metainfo.bool_columns:
+            for name, column in metainfo.bool_columns.items():
+                value = bool_data.get(name, None)
+                model_name = "bool_" + name
+
+                model = p.create_model(
+                    model_name,
+                    **{
+                        model_name: (
+                            _t.Optional[column.python_type],
+                            p.Field(
+                                default=value,
+                                title=column.options.title
+                                if column.options.title
+                                else column.name.title(),
+                                json_schema_extra={"mode": "switch"},
+                            ),
+                        )
+                    },
+                )
+
+                filters.extend(
+                    [
+                        c.ModelForm(
+                            submit_on_change=True,
+                            submit_url=".",
+                            method="GOTO",
+                            model=model,
+                            class_name="d-block",
                             initial={model_name: value},
                             footer=[],
                         )

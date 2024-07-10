@@ -36,6 +36,7 @@ class FastAdminPages(comp.FastAdminComponents):
         page: int,
         access: "AccessCredetinalsAdmin",
         enums: dict[str, str],
+        bools: dict[str, str],
     ) -> list[c.AnyComponent]:
         data = await search_func(
             session=session,
@@ -43,6 +44,7 @@ class FastAdminPages(comp.FastAdminComponents):
             field=field,
             search=search,
             enums=enums,
+            bools=bools,
             count=True,
             to_dict=True,
         )
@@ -59,12 +61,24 @@ class FastAdminPages(comp.FastAdminComponents):
             c.LinkList(
                 links=cls._get_home_links(), mode="tabs", class_name="+ mt-2 mb-4"
             ),
+            c.Heading(
+                text=FastAdminConfig.words.filter_text, level=4, class_name="+ my-2"
+            ),
             c.Div(
                 components=[
                     c.Div(
                         components=[
-                            *cls.generate_filters(metainfo=metainfo, enums=enums),
+                            *cls.generate_bool_filters(
+                                metainfo=metainfo, bool_data=bools
+                            )
                         ],
+                        class_name="col-sm",
+                    ),
+                    c.Div(
+                        components=[
+                            *cls.generate_enum_filters(metainfo=metainfo, enums=enums),
+                        ],
+                        class_name="col-sm",
                     ),
                     c.Div(
                         components=[
@@ -74,12 +88,14 @@ class FastAdminPages(comp.FastAdminComponents):
                                 method="GOTO",
                                 submit_on_change=True,
                                 submit_url=".",
-                                class_name="row row-cols-4 align-items-center justify-content-end",
+                                class_name="d-block",
                                 footer=[],
                             ),
                         ],
+                        class_name="col-sm",
                     ),
                 ],
+                class_name="container row justify-content-between",
             ),
             *cls.table_with_pagination(
                 page=page,
@@ -260,6 +276,7 @@ class FastAdminPages(comp.FastAdminComponents):
         )
 
         await cls.before_edit_view_page(
+            session=session,
             table=table_name,
             field=field,
             value=value,

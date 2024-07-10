@@ -13,6 +13,8 @@ from fastadmin.utils.func import patched_fastui_form
 
 from fastui import components as c, events as e
 
+from copy import deepcopy
+
 import hashlib as _hash
 import fastapi as _fa
 import pydantic as p
@@ -61,6 +63,9 @@ class FastAdminMeta(
                     k: v
                     for k, v in columns.items()
                     if issubclass(v.python_type, enum.Enum)
+                },
+                bool_columns={
+                    k: v for k, v in columns.items() if issubclass(v.python_type, bool)
                 },
             )
 
@@ -195,23 +200,23 @@ class FastAdminMeta(
 
     @classmethod
     def _get_table(cls, table: _tb.TableStrName) -> type["FastAdminMeta"]:
-        return cls.__admin_metadata.get(table).table
+        return deepcopy(cls.__admin_metadata.get(table).table)
 
     @classmethod
     def __get_metainfo__(cls, table: _tb.TableStrName) -> "MetaInfo":
-        return cls.__admin_metadata.get(table)
+        return deepcopy(cls.__admin_metadata.get(table))
 
     @classproperty
     def __meta_keys__(cls) -> tuple[str]:
-        return tuple(cls.__admin_metadata.keys())
+        return deepcopy(tuple(cls.__admin_metadata.keys()))
 
     @classproperty
     def __meta_values__(cls) -> tuple["MetaInfo"]:
-        return tuple(cls.__admin_metadata.values())
+        return deepcopy(tuple(cls.__admin_metadata.values()))
 
     @classmethod
     def __meta_items__(cls) -> list[tuple[str, "MetaInfo"]]:
-        return list(cls.__admin_metadata.items())
+        return deepcopy(list(cls.__admin_metadata.items()))
 
     @classmethod
     async def authefication(
@@ -319,5 +324,6 @@ class MetaInfo(p.BaseModel):
     foregin_columns: dict[str, TableColumn] = {}
     unique_columns: dict[str, TableColumn] = {}
     enum_columns: dict[str, TableColumn] = {}
+    bool_columns: dict[str, TableColumn] = {}
     columns: dict[str, TableColumn]
     permissions: _t.List[str] = []

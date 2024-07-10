@@ -89,7 +89,6 @@ async def exit(
 )
 async def home_page(
     table: str,
-    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     field: _t.Optional[str] = None,
@@ -98,12 +97,16 @@ async def home_page(
     access: types.AccessCredentials = fa.Depends(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
+    enums: dict[str, str] = fa.Depends(
+        FastAdminMeta.get_params_values_with_prefix("enum_")
+    ),
+    bools: dict[str, str] = fa.Depends(
+        FastAdminMeta.get_params_values_with_prefix("bool_")
+    ),
 ) -> list[c.AnyComponent]:
     admin_model: p.BaseModel = model.which_model("admin")
 
     session = model.get_session()
-
-    enums = model.get_enums_params_values(request=request)
 
     async with session() as session:
         return await model.home(
@@ -116,6 +119,7 @@ async def home_page(
             field=field,
             page=page,
             enums=enums,
+            bools=bools,
         )
 
 

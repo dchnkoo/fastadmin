@@ -102,6 +102,7 @@ class ModelActions(SQLModel2Pydantic):
     @classmethod
     async def before_edit_view_page(
         cls: type["FastAdminMeta"],
+        session: "AsyncSession",
         table: str,
         field: str,
         value: str,
@@ -136,11 +137,14 @@ class ModelActions(SQLModel2Pydantic):
         ...
 
     @staticmethod
-    def get_enums_params_values(request: _fa.Request) -> dict[str, str]:
-        params = {}
+    def get_params_values_with_prefix(prefix: str):
+        def get(request: _fa.Request) -> dict[str, str]:
+            params = {}
 
-        for key, value in request.query_params.items():
-            if key.startswith("enum"):
-                params[key.removeprefix("enum_")] = value
+            for key, value in request.query_params.items():
+                if key.startswith(prefix):
+                    params[key.removeprefix(prefix)] = value
 
-        return params
+            return params
+
+        return get

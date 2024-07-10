@@ -10,7 +10,7 @@ from fastadmin.metadata import FastAdminMeta, MetaInfo
 from fastadmin.utils.words import AdminWords
 from fastadmin import FastAdmin
 
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class Base(DeclarativeBase):
@@ -65,6 +65,45 @@ class User(Base, FastAdminMeta):
         **kw,
     ) -> None:
         data["worker"] = int(data["worker"])
+
+    @classmethod
+    async def before_edit_view_page(
+        cls: FastAdminMeta,
+        session: AsyncSession,
+        table: str,
+        field: str,
+        value: str,
+        metainfo: MetaInfo,
+        access: Any,
+        data: dict,
+    ) -> None:
+        worker = await Worker.get(
+            session=session,
+            where=Worker.id == data.get("worker"),
+            all_=False,
+        )
+
+        data["worker"] = {"value": worker.data.id, "label": worker.data.name}
+
+
+class OrderStatus(StrEnum):
+    new = "Новий"
+    in_precessing = "В обробці"
+    sent = "Відправлено"
+    delivered = "Доставлено"
+    canceled = "Відмінено"
+
+
+class Order(Base, FastAdminMeta):
+    __tablename__ = "order"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    status: Mapped[OrderStatus] = mapped_column(
+        set_enum(OrderStatus, "order_status"),
+        default=OrderStatus.new.value,
+        nullable=False,
+    )
+    registered_user: Mapped[bool] = mapped_column(default=False, nullable=False)
 
 
 words = AdminWords(

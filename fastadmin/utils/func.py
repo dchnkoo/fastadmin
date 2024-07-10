@@ -17,6 +17,7 @@ async def search_func(
     field: _t.Optional[str],
     search: _t.Optional[str],
     enums: dict[str, str] = {},
+    bools: dict[str, str] = {},
     ilike: bool = False,
     **kw,
 ):
@@ -51,6 +52,15 @@ async def search_func(
 
         where.append(
             getattr(table, meta_enum_column.name) == meta_enum_column.python_type(value)
+        )
+
+    for name, value in bools.items():
+        meta_bool_column = metainfo.bool_columns.get(name)
+
+        where.append(
+            getattr(table, meta_bool_column.name).is_(
+                meta_bool_column.python_type(value)
+            )
         )
 
     return await table.get(

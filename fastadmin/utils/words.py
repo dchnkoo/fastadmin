@@ -14,6 +14,7 @@ class AdminWords:
         form_page_heading: str = "Add to %s",
         edit_page_heading: str = "Edit %s",
         search: str = "Search",
+        filter_text: str = "Filters",
     ) -> None:
         self.add = add
         self.logout = logout
@@ -28,3 +29,4 @@ class AdminWords:
         self.form_page_heading = form_page_heading
         self.edit_page_heading = edit_page_heading
         self.search = search
+        self.filter_text = filter_text
