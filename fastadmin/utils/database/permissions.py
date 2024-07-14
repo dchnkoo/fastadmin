@@ -28,8 +28,9 @@ class Permissions:
             "validators": {
                 "premissions_validator": p.field_validator(
                     "permissions", check_fields=False, mode="before"
-                )(prem_validator)
+                )(classmethod(prem_validator))
             },
+            "config": {"use_enum_values": True},
         }
 
     @classproperty
@@ -40,6 +41,7 @@ class Permissions:
             "exclude": get_form["exclude"] + ["password"],
             "fields": {"permissions": get_form["fields"]["permissions"]},
             "validators": get_form["validators"],
+            "config": get_form["config"],
         }
 
     is_admin = sa.Column(sa.Boolean, nullable=False, default=False)

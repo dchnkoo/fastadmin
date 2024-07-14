@@ -4,8 +4,12 @@ import fastui.class_name as cls_name
 from fastadmin.utils.func import search_func
 from fastadmin.conf import FastAdminConfig
 
+import starlette.datastructures as starlette
+
 import pydantic as p
 import typing as _t
+import base64
+import pickle
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import FastAdminMeta, MetaInfo
@@ -14,7 +18,340 @@ if _t.TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class FastAdminComponents:
+T = _t.TypeVar("T")
+
+field: _t.TypeAlias = str
+
+
+class Files:
+    @classmethod
+    async def combine_files(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        data: dict,
+        field: str,
+        value: str,
+        metainfo: "MetaInfo",
+    ):
+        meta_field = metainfo.columns.get(field)
+
+        old_data = (
+            await cls.get(
+                session=session,
+                where=getattr(cls, meta_field.name) == meta_field.python_type(value),
+                all_=False,
+                to_dict=True,
+            )
+        ).data
+
+        for key in cls.find_files_in_data(data=data):
+            if isinstance(old_data[key], list):
+                data[key] = [
+                    cls.convert_python_obj_to_file_bytes(item) for item in data[key]
+                ]
+
+                old_data[key].extend(data[key])
+
+                data[key] = old_data[key]
+
+            else:
+                data[key] = cls.convert_python_obj_to_file_bytes(data[key])
+
+    @classmethod
+    def find_files_in_data(
+        cls, data: dict[str, T | starlette.UploadFile | list[starlette.UploadFile]]
+    ) -> list[field]:
+        keys = []
+
+        check_right_file_type: _t.Callable[[starlette.UploadFile]] = lambda file: (  # noqa E731
+            content_type := file.content_type
+        ).startswith("image") or content_type.startswith("video")
+
+        for key, value in list(data.items()):
+            if isinstance((file := value), starlette.UploadFile) and (
+                file.size == 0 or check_right_file_type(file) is False
+            ):
+                del data[key]
+
+                continue
+
+            if isinstance(
+                (file := value), starlette.UploadFile
+            ) and check_right_file_type(value):
+                keys.append(key)
+
+            elif (
+                isinstance(value, bytes)
+                and isinstance(
+                    (file := cls.convert_bytes_file_to_python_obj(value)),
+                    starlette.UploadFile,
+                )
+                and check_right_file_type(file=file)
+            ):
+                data[key] = file
+
+                keys.append(key)
+
+            elif isinstance(value, list):
+                if any(
+                    (
+                        files := [
+                            isinstance(item, starlette.UploadFile)
+                            and (item.size == 0 or check_right_file_type(item) is False)
+                            for item in value
+                        ]
+                    )
+                ):
+                    for index, item in enumerate(files):
+                        if item:
+                            del value[index]
+
+                            data[key] = value
+
+                    keys.append(key)
+
+                    continue
+
+                if all(
+                    isinstance(item, starlette.UploadFile)
+                    and check_right_file_type(item)
+                    for item in value
+                ):
+                    keys.append(key)
+
+                elif files := [
+                    file
+                    for item in value
+                    if isinstance(item, bytes)
+                    and isinstance(
+                        (file := cls.convert_bytes_file_to_python_obj(item)),
+                        starlette.UploadFile,
+                    )
+                    and check_right_file_type(file=file)
+                ]:
+                    data[key] = files
+
+                    keys.append(key)
+
+        return keys
+
+    @staticmethod
+    def convert_bytes_file_to_python_obj(file: bytes, **kw) -> starlette.UploadFile:
+        return pickle.loads(file, **kw)
+
+    @staticmethod
+    def convert_python_obj_to_file_bytes(file: starlette.UploadFile, **kw) -> bytes:
+        return pickle.dumps(file, **kw)
+
+    @classmethod
+    async def convert_file_obj_to_bytes(
+        cls, data: dict[str, T | starlette.UploadFile | list[starlette.UploadFile]]
+    ) -> None:
+        for key in cls.find_files_in_data(data=data):
+            value = data.get(key)
+
+            if isinstance(value, list):
+                data[key] = [
+                    cls.convert_python_obj_to_file_bytes(item) for item in value
+                ]
+
+            else:
+                data[key] = cls.convert_python_obj_to_file_bytes(value)
+
+    @classmethod
+    def image_component(
+        cls: type["FastAdminMeta"],
+        table: str,
+        value: str,
+        field: str,
+        key: str,
+        index: _t.Optional[int],
+        file: starlette.UploadFile,
+    ):
+        click_url = FastAdminConfig.api_path_strip + cls._get_urls().FILE_VIEW.format(
+            table=table, field=field, value=value, key=key
+        )
+
+        return c.Image(
+            src=f"data:{file.content_type};base64, {base64.b64encode(file.file.read()).decode("utf-8")}",
+            alt=file.filename,
+            referrer_policy="same-origin",
+            class_name="+ border border-dark",
+            loading="lazy",
+            on_click=e.GoToEvent(
+                url=click_url + f"?index={index}" if index is not None else click_url,
+                target="_blank",
+            ),
+            height=FastAdminConfig.files_height,
+            width=FastAdminConfig.files_width,
+        )
+
+    @classmethod
+    def video_component(
+        cls: type["FastAdminMeta"],
+        table: str,
+        value: str,
+        field: str,
+        key: str,
+        index: _t.Optional[int],
+        file: starlette.UploadFile,
+    ):
+        click_url = FastAdminConfig.api_path_strip + cls._get_urls().FILE_VIEW.format(
+            table=table, field=field, value=value, key=key
+        )
+
+        return c.Link(
+            components=[
+                c.Video(
+                    sources=[
+                        f"data:{file.content_type};base64, {base64.b64encode(file.file.read()).decode("utf-8")}"
+                    ],
+                    class_name="+ border border-dark",
+                    height=FastAdminConfig.files_height,
+                    width=FastAdminConfig.files_width,
+                )
+            ],
+            on_click=e.GoToEvent(
+                url=click_url + f"?index={index}" if index is not None else click_url,
+                target="_blank",
+            ),
+        )
+
+    @classmethod
+    def get_file(
+        cls: type["FastAdminMeta"],
+        file: starlette.UploadFile,
+        table: str,
+        field: str,
+        value: str,
+        key: str,
+        index: _t.Optional[int] = None,
+    ) -> _t.Union[c.Image, c.Video]:
+        content_type = file.content_type
+
+        match content_type:
+            case _ if content_type.startswith("image"):
+                return cls.image_component(
+                    table=table,
+                    value=value,
+                    field=field,
+                    key=key,
+                    index=index,
+                    file=file,
+                )
+
+            case _ if content_type.startswith("video"):
+                return cls.video_component(
+                    table=table,
+                    value=value,
+                    field=field,
+                    key=key,
+                    index=index,
+                    file=file,
+                )
+
+            case _:
+                return c.Error(
+                    title="Error", description="This file type is not supported yet."
+                )
+
+    @classmethod
+    async def file_div(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        metainfo: "MetaInfo",
+        access: "AccessCredetinalsAdmin",
+        file: starlette.UploadFile,
+        table: str,
+        field: str,
+        value: str,
+        key: str,
+        index: _t.Optional[int] = None,
+        delete: bool = False,
+    ):
+        div_components = [
+            cls.get_file(
+                file=file,
+                index=index,
+                table=table,
+                field=field,
+                value=value,
+                key=key,
+            )
+        ]
+
+        if delete:
+            delete_url = FastAdminConfig.api_root_url + cls._get_urls().IMAGE_DELETE
+
+            check_index = index is not None
+
+            await cls.set_delete_button(
+                session=session,
+                metainfo=metainfo,
+                access=access,
+                table=table,
+                field=field,
+                value=value,
+                body=div_components,
+                delete_url=delete_url + f"?index={index}"
+                if check_index
+                else delete_url,
+                modal_open_trigger_name=f"delete-{index}" if check_index else "delete",
+                delete_item_trigger=f"delete-item-{index}"
+                if check_index
+                else "delete-item",
+                key=key,
+            )
+
+        return c.Div(components=div_components, class_name="m-5")
+
+    @classmethod
+    async def setup_files(
+        cls,
+        session: "AsyncSession",
+        metainfo: "MetaInfo",
+        access: "AccessCredetinalsAdmin",
+        data: dict[str, _t.Any],
+        table: str,
+        field: str,
+        value: str,
+        delete: bool = False,
+    ) -> list[c.Div]:
+        keys = cls.find_files_in_data(data=data)
+
+        content = []
+
+        args = lambda file, key, index=None: {  # noqa E731
+            "session": session,
+            "access": access,
+            "metainfo": metainfo,
+            "file": file,
+            "table": table,
+            "field": field,
+            "value": value,
+            "key": key,
+            "index": index,
+            "delete": delete,
+        }
+
+        for key in keys:
+            file = data.get(key)
+
+            if isinstance(file, list):
+                for index, f in enumerate(file):
+                    components = await cls.file_div(**args(f, key, index))
+
+                    content.append(components)
+
+            else:
+                components = await cls.file_div(**args(file, key))
+
+                content.append(components)
+
+        return content
+
+
+class FastAdminComponents(Files):
     @classmethod
     def page_frame(
         cls,
@@ -255,6 +592,7 @@ class FastAdminComponents:
         delete_url: str,
         modal_open_trigger_name: str = "delete",
         delete_item_trigger: str = "delete-item",
+        **format_kw,
     ):
         if await cls.check_delete_permissions(
             user=access, session=session, metainfo=metainfo
@@ -276,7 +614,9 @@ class FastAdminComponents:
                                 )
                             ),
                             c.Form(
-                                submit_url=delete_url,
+                                submit_url=delete_url.format(
+                                    table=table, field=field, value=value, **format_kw
+                                ),
                                 footer=[],
                                 submit_trigger=e.PageEvent(name=delete_item_trigger),
                                 form_fields=[

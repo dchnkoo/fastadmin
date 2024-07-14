@@ -28,7 +28,7 @@ class SQLModel2Pydantic:
         if hasattr(config_dict, "__pydantic_root_model__"):
             return config_dict
 
-        exclude, fields, valids, base = cls._parse_config(config=config_dict)
+        exclude, fields, valids, base, config = cls._parse_config(config=config_dict)
 
         metainfo = cls.__get_metainfo__(model.__tablename__)
 
@@ -41,19 +41,21 @@ class SQLModel2Pydantic:
             columns=columns,
             validators=valids,
             base=base,
+            config=config,
             model_type=model_type,
         )
 
     @staticmethod
     def _parse_config(
         config: dict
-    ) -> tuple[exclude_fields, fields_options, validators, p.BaseModel]:
+    ) -> tuple[exclude_fields, fields_options, validators, p.BaseModel, dict]:
         exclude = config.get("exclude", [])
         fields = config.get("fields", {})
         valids = config.get("validators", None)
         base = config.get("base", None)
+        config_dict = config.get("config", None)
 
-        return (exclude, fields, valids, base)
+        return (exclude, fields, valids, base, config_dict)
 
     @staticmethod
     def _get_valid_columns(
@@ -81,6 +83,7 @@ class SQLModel2Pydantic:
         columns: dict[str, _t.Union[tuple[type, p.Field], "TableColumn"]],
         validators: dict[str, classmethod] | None,
         base: p.BaseModel | None,
+        config: _t.Optional[p.config.ConfigDict],
         model_type: _tb.FastModels,
     ) -> p.BaseModel:
         config_dict = {}
@@ -97,7 +100,7 @@ class SQLModel2Pydantic:
             )
             column_field_config = p.Field(
                 default=None
-                if (options.nullable is True and options.default_value is None)
+                if (options.nullable and options.default_value is None)
                 else PydanticUndefined
                 if options.default_value is None
                 else options.default_value,
@@ -127,5 +130,6 @@ class SQLModel2Pydantic:
             metainfo.table_class_name,
             __base__=base,
             __validators__=validators,
+            __config__=config,
             **config_dict,
         )

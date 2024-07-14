@@ -12,6 +12,9 @@ from fastadmin.utils import types as _tb
 import pydantic as p
 import typing as _t
 
+if _t.TYPE_CHECKING:
+    from fastadmin.metadata import FastAdminMeta
+
 
 _DB = _t.TypeVar("_DB", bound="_AsyncDB")
 
@@ -103,7 +106,7 @@ class _AsyncDB:
 
     @classmethod
     async def get(
-        cls: _t.Type[_DB],
+        cls: type["FastAdminMeta"],
         session: AsyncSession,
         table: _t.Union[sa.Table, _tb.TableColumns],
         where: _t.Optional[

@@ -430,9 +430,77 @@ async def delete_item(
     return [c.FireEvent(event=e.BackEvent(), message="Deleted!")]
 
 
+@delete.post(urls.IMAGE_DELETE)
+async def delete_image(
+    table: str,
+    field: str,
+    value: str,
+    key: str,
+    index: _t.Optional[int] = None,
+    model: type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
+    metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
+    access: types.AccessCredentials = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials
+    ),
+):
+    session = model.get_session()
+
+    async with session() as session:
+        meta_field = metainfo.columns.get(field)
+        where = getattr(model, meta_field.name) == meta_field.python_type(value)
+
+        image = (
+            await model.get(
+                session=session,
+                where=where,
+                table=(getattr(model, key),),
+                all_=False,
+            )
+        ).data
+
+        if index is not None:
+            del image[index]
+
+        else:
+            image = None
+
+        await model.update(session=session, where=where, **{key: image})
+
+    return [c.FireEvent(event=e.BackEvent())]
+
+
 ui.include_router(add)
 ui.include_router(edit)
 ui.include_router(delete)
+
+
+@ui.get(urls.FILE_VIEW, response_model=FastUI, response_model_exclude_none=True)
+async def get_file(
+    table: str,
+    field: str,
+    value: str,
+    key: str,
+    index: _t.Optional[int] = None,
+    model: type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
+    metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
+    access: types.AccessCredentials = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials
+    ),
+):
+    session = model.get_session()
+
+    async with session() as session:
+        return await model.image_page(
+            session=session,
+            table=table,
+            field=field,
+            value=value,
+            key=key,
+            index=index,
+            metainfo=metainfo,
+            access=access,
+        )
+
 
 main = fa.FastAPI(include_in_schema=False)
 

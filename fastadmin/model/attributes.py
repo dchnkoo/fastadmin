@@ -298,6 +298,8 @@ class ModelAttributes:
         """
         lookups: list[c.display.DisplayLookup] = []
 
+        exclude = cls.admin.get("exclude", [])
+
         meta = cls.__get_metainfo__(cls.__tablename__)
 
         if meta.unique_columns:
@@ -319,7 +321,7 @@ class ModelAttributes:
             )
 
         for column in meta.columns:
-            if column != lookups[0].field:
+            if column != lookups[0].field and column not in exclude:
                 lookups.append(c.display.DisplayLookup(field=column))
 
         return lookups

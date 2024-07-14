@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import pydantic as p
 import typing as _t
+import copy
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import MetaInfo, FastAdminMeta
@@ -160,6 +161,17 @@ class FastAdminPages(comp.FastAdminComponents):
                 components=[c.Text(text=FastAdminConfig.words.back)],
                 on_click=e.BackEvent(),
             ),
+            *(
+                await cls.setup_files(
+                    data=detail.data,
+                    table=table,
+                    field=field,
+                    value=value,
+                    session=session,
+                    metainfo=metainfo,
+                    access=access,
+                )
+            ),
             c.Details(
                 data=pydantic_model(**detail.data),
                 fields=cls.set_display_lookups_details(
@@ -176,12 +188,7 @@ class FastAdminPages(comp.FastAdminComponents):
             table=table,
             field=field,
             value=value,
-            delete_url=FastAdminConfig.api_root_url
-            + cls._get_urls().DELETE.format(
-                table=table,
-                field=field,
-                value=value,
-            ),
+            delete_url=FastAdminConfig.api_root_url + cls._get_urls().DELETE,
         )
 
         if await cls.check_edit_permissions(
@@ -275,16 +282,6 @@ class FastAdminPages(comp.FastAdminComponents):
             to_dict=True,
         )
 
-        await cls.before_edit_view_page(
-            session=session,
-            table=table_name,
-            field=field,
-            value=value,
-            metainfo=meta_field,
-            access=access,
-            data=data.data,
-        )
-
         return cls.page_frame(
             body=[
                 c.Heading(
@@ -299,9 +296,31 @@ class FastAdminPages(comp.FastAdminComponents):
                     components=[c.Text(text=FastAdminConfig.words.back)],
                     on_click=e.BackEvent(),
                 ),
+                *(
+                    await cls.setup_files(
+                        session=session,
+                        metainfo=metainfo,
+                        access=access,
+                        data=copy.deepcopy(data.data),
+                        table=table_name,
+                        field=field,
+                        value=value,
+                        delete=True,
+                    )
+                ),
                 c.ModelForm(
                     model=pydantic_model,
-                    initial=data.data,
+                    initial=(
+                        await cls.before_edit_view_page(
+                            session=session,
+                            table=table_name,
+                            field=field,
+                            value=value,
+                            metainfo=meta_field,
+                            access=access,
+                            data=data.data,
+                        )
+                    ),
                     display_mode="page",
                     submit_url=FastAdminConfig.api_root_url
                     + cls._get_urls().UPDATE.format(
@@ -318,3 +337,46 @@ class FastAdminPages(comp.FastAdminComponents):
             ],
             left=[*cls.exit_event()],
         )
+
+    @classmethod
+    async def image_page(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        table: str,
+        field: str,
+        value: str,
+        key: str,
+        index: _t.Optional[int],
+        metainfo: "MetaInfo",
+        access: "AccessCredetinalsAdmin",
+    ) -> list[c.AnyComponent]:
+        meta_field = metainfo.columns.get(field)
+
+        data = await cls.get(
+            session=session,
+            where=getattr(cls, meta_field.name) == meta_field.python_type(value),
+            all_=False,
+        )
+
+        image = getattr(data.data, key)
+
+        if index is not None:
+            image = image[index]
+
+        setup_image = cls.get_file(
+            cls.convert_bytes_file_to_python_obj(image),
+            table=table,
+            field=field,
+            value=value,
+            key=key,
+            index=index,
+        )
+
+        setup_image.class_name = "+ h-100 border border-light mx-auto"
+
+        return [
+            c.Page(
+                components=[setup_image],
+                class_name="h-100 bg-dark d-flex justify-content-center align-items-center",
+            )
+        ]

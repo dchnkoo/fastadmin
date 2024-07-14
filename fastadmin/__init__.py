@@ -94,6 +94,8 @@ class FastAdmin(_fa.FastAPI):
         default_title: str = "Fast Admin",
         api_root_url: str = "/api",
         api_path_mode: _t.Optional[_t.Literal["append", "query"]] = None,
+        files_height: int = 200,
+        files_width: _t.Optional[int] = None,
         **fastapi_options,
     ) -> None:
         """
@@ -148,6 +150,8 @@ class FastAdmin(_fa.FastAPI):
         ) = sqlalchemy_metadata
         FastAdminConfig.admin_table_name = self.admin_table_name = admin_table_name
         FastAdminConfig.auth_model = self.auth_model = auth_model
+        FastAdminConfig.files_height = self.files_height = files_height
+        FastAdminConfig.files_width = self.files_width = files_width
 
         if sqlalchemy_metadata is not None:
             from fastadmin.utils.database.tables import AdminUser  # noqa F401

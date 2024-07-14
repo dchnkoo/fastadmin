@@ -1,21 +1,24 @@
 from typing import Any, Literal
-from pydantic import BaseModel
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastadmin.middleware.jwt import AccessCredetinalsAdmin
 from fastadmin.utils.database.enum import set_enum
+from fastadmin.utils.database.permissions import prem_validator
 from fastadmin.metadata import FastAdminMeta, MetaInfo
 from fastadmin.utils.words import AdminWords
 from fastadmin import FastAdmin
 
 from enum import Enum, StrEnum
 
+from starlette import datastructures as dastrc  # noqa F401
+
 from fastui import forms  # noqa F401
 import typing as _t  # noqa F401
 import fastapi as _fa  # noqa F401
-import pydantic as p  # noqa F401
+
+import pydantic as p
 
 
 class Base(DeclarativeBase):
@@ -28,21 +31,65 @@ class Status(Enum):
     active = "Активний"
 
 
+def images_validator(cls, v):
+    if v is None:
+        return []
+
+    return prem_validator(cls, v)
+
+
 class Worker(FastAdminMeta, Base):
     __tablename__ = "some_worker"
 
     id = sa.Column(sa.Integer, primary_key=True)
+
+    image = sa.Column(sa.LargeBinary, nullable=True)
+    images = sa.Column(sa.ARRAY(sa.LargeBinary), nullable=True)
+
     name = sa.Column(sa.String, nullable=False)
 
-    form = {"exclude": ["id"]}
+    form = {
+        "exclude": ["id"],
+        "fields": {
+            "image": (
+                _t.Optional[_t.Annotated[_fa.UploadFile, forms.FormFile("image/*")]],
+                p.Field(default=None),
+            ),
+            "images": (
+                _t.Annotated[list[_fa.UploadFile], forms.FormFile("image/*")],
+                p.Field(default=[]),
+            ),
+        },
+    }
 
-    edit_form = {"exclude": form["exclude"]}
+    edit_form = {
+        "exclude": form["exclude"],
+        "fields": form["fields"],
+    }
+
+    repr = {"exclude": edit_form["exclude"]}
+
+    admin = {"exclude": ["image", "images"]}
+
+    @classmethod
+    async def before_edit_view_page(
+        cls: FastAdminMeta,
+        session: AsyncSession,
+        table: str,
+        field: str,
+        value: str,
+        metainfo: MetaInfo,
+        access: Any,
+        data: dict,
+    ) -> dict:
+        del data["images"]
+        del data["image"]
+
+        return data
 
 
 class User(Base, FastAdminMeta):
     __tablename__ = "some_user"
-
-    can_delete = False
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(nullable=True)
@@ -67,7 +114,7 @@ class User(Base, FastAdminMeta):
         signal: Literal["form"] | Literal["edit_form"],
         session: AsyncSession,
         data: dict[str, Any],
-        model: type[BaseModel],
+        model: type[p.BaseModel],
         access: AccessCredetinalsAdmin,
         table_name: str,
         metainfo: MetaInfo,
@@ -93,6 +140,8 @@ class User(Base, FastAdminMeta):
         )
 
         data["worker"] = {"value": worker.data.id, "label": worker.data.name}
+
+        return data
 
 
 class OrderStatus(StrEnum):
@@ -140,4 +189,5 @@ app = FastAdmin(
     sqlalchemy_metadata=Base,
     admin_panel_words=words,
     default_title="Електрична Фортеця Admin",
+    files_height=300,
 )

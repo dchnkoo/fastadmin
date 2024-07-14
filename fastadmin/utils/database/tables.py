@@ -7,12 +7,6 @@ from fastadmin.conf import FastAdminConfig
 from fastui import events as e, components as c
 
 
-def prem_validator(cls, v):
-    if isinstance(v, list):
-        return v
-    return [v]
-
-
 class AdminUser(Permissions, FastAdminMeta, FastAdminConfig.sqlalchemy_metadata):
     __tablename__ = FastAdminConfig.admin_table_name
 
@@ -31,4 +25,6 @@ class AdminUser(Permissions, FastAdminMeta, FastAdminConfig.sqlalchemy_metadata)
         c.display.DisplayLookup(field="is_super"),
     ]
 
-    repr = {"exclude": ["id", "password", "is_admin", "is_super", "permissions"]}
+    admin = {"exclude": ["id", "password"]}
+
+    repr = {"exclude": admin["exclude"] + ["is_admin", "is_super", "permissions"]}

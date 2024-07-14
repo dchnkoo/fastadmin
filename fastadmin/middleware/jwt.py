@@ -286,6 +286,13 @@ class AccessCredetinalsAdmin(p.BaseModel):
     permissions: list[str]
     is_super: bool
 
+    @p.field_validator("permissions", mode="before")
+    @classmethod
+    def validate_perms(cls, v: _t.Optional[list[str]]):
+        if v is None:
+            return []
+        return v
+
 
 class FastAdminJWT(AbsractJWTMiddleware):
     @classmethod

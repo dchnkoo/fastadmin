@@ -36,3 +36,6 @@ class FastAdminConfig:
     auth_model: type[_p.BaseModel]
 
     words: "AdminWords"
+
+    files_height: int
+    files_width: _t.Optional[int]

@@ -2,12 +2,10 @@ from fastadmin.model.sqlmodel2pydantic import SQLModel2Pydantic
 from fastadmin.conf import FastAdminConfig
 from fastadmin.utils import types
 
-import starlette.datastructures as starlette
 import fastapi as _fa
 import sqlalchemy as sa
 import pydantic as p
 import typing as _t
-import base64
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import FastAdminMeta, MetaInfo
@@ -90,28 +88,6 @@ class ModelActions(SQLModel2Pydantic):
             ) and key not in ignore_fields:
                 data[key] = int(value)
 
-    @staticmethod
-    async def convert_images_to_base64str(
-        data: dict[str, T | starlette.UploadFile | list[starlette.UploadFile]]
-    ) -> None:
-        convert: _t.Callable[[starlette.UploadFile]] = lambda image: (  # noqa E731
-            image.content_type,
-            base64.b64encode(value.file.read()).decode(),
-            image.filename,
-            image.size,
-        )
-
-        for key, value in data.items():
-            if isinstance(value, starlette.UploadFile):
-                data[key] = convert(value)
-
-            elif isinstance(value, list) and all(
-                isinstance(item, starlette.UploadFile) for item in value
-            ):
-                bytes_list = [convert(item) for item in value]
-
-                data[key] = bytes_list
-
     @classmethod
     async def before_saving(
         cls: type["FastAdminMeta"],
@@ -124,7 +100,17 @@ class ModelActions(SQLModel2Pydantic):
         metainfo: "MetaInfo",
         **kw,
     ) -> None:
-        ...
+        if signal == "edit_form":
+            await cls.combine_files(
+                session=session,
+                data=data,
+                field=kw.get("field"),
+                value=kw.get("value"),
+                metainfo=metainfo,
+            )
+
+        else:
+            await cls.convert_file_obj_to_bytes(data)
 
     @classmethod
     async def after_saving(
@@ -150,8 +136,8 @@ class ModelActions(SQLModel2Pydantic):
         metainfo: "MetaInfo",
         access: types.AccessCredentials,
         data: dict,
-    ) -> None:
-        ...
+    ) -> dict:
+        return data
 
     @classmethod
     async def before_delete(
