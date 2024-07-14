@@ -251,7 +251,9 @@ class _AsyncDB:
         )
 
     @staticmethod
-    async def insert(table: sa.Table, session: AsyncSession, **kwargs) -> sa.Table:
+    async def insert(
+        table: sa.Table, session: AsyncSession, commit: bool = True, **kwargs
+    ) -> sa.Table:
         data = table(**kwargs)
 
         async with session.begin():
@@ -263,7 +265,8 @@ class _AsyncDB:
 
                 raise e
 
-            await session.commit()
+            if commit:
+                await session.commit()
 
         return data
 
@@ -277,6 +280,7 @@ class _AsyncDB:
                 sa_t.ColumnExpressionArgument, tuple[sa_t.ColumnExpressionArgument]
             ]
         ] = None,
+        commit: bool = True,
         **kwargs,
     ):
         query = sa.update(table)
@@ -288,7 +292,7 @@ class _AsyncDB:
 
         query = query.values(**kwargs)
 
-        await cls.execute(session=session, query=query, commit=True)
+        await cls.execute(session=session, query=query, commit=commit)
 
     @classmethod
     async def delete(
@@ -298,12 +302,13 @@ class _AsyncDB:
         where: _t.Union[
             sa_t.ColumnExpressionArgument, tuple[sa_t.ColumnExpressionArgument]
         ],
+        commit: bool = True,
     ):
         query = sa.delete(table).where(
             sa.and_(*where) if isinstance(where, tuple) else sa.and_(where)
         )
 
-        await cls.execute(session=session, query=query, commit=True)
+        await cls.execute(session=session, query=query, commit=commit)
 
     @classmethod
     def to_json(cls, data: _t.Type[_DB]) -> dict:

@@ -83,8 +83,10 @@ class ModelDB(_AsyncDB):
         )
 
     @classmethod
-    async def insert(cls: _t.Type[_DB], session: AsyncSession, **kwargs) -> _DB:
-        return await super().insert(table=cls, session=session, **kwargs)
+    async def insert(
+        cls: _t.Type[_DB], session: AsyncSession, commit: bool = True, **kwargs
+    ) -> _DB:
+        return await super().insert(table=cls, session=session, commit=commit, **kwargs)
 
     @classmethod
     async def update(
@@ -95,9 +97,12 @@ class ModelDB(_AsyncDB):
                 _sa_t.ColumnExpressionArgument, tuple[_sa_t.ColumnExpressionArgument]
             ]
         ] = None,
+        commit: bool = True,
         **kwargs,
     ):
-        await super().update(table=cls, session=session, where=where, **kwargs)
+        await super().update(
+            table=cls, session=session, where=where, commit=commit, **kwargs
+        )
 
     @classmethod
     async def delete(
@@ -106,9 +111,11 @@ class ModelDB(_AsyncDB):
         where: _t.Union[
             _sa_t.ColumnExpressionArgument, tuple[_sa_t.ColumnExpressionArgument]
         ],
+        commit: bool = True,
     ):
         await super().delete(
             table=cls,
             session=session,
             where=where,
+            commit=commit,
         )

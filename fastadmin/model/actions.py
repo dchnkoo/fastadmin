@@ -213,8 +213,8 @@ class ModelActions(SQLModel2Pydantic):
             ).data
 
             data[column.name] = {
-                "value": getattr(foregin_data, foregin_column),
-                "label": getattr(
-                    foregin_data, column.options.foregin.selected_foregin_field
+                "value": str(getattr(foregin_data, foregin_column)),
+                "label": str(
+                    getattr(foregin_data, column.options.foregin.selected_foregin_field)
                 ),
             }
