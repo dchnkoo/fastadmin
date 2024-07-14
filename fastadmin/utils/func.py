@@ -5,6 +5,7 @@ from fastapi import params as _params
 import fastapi as _fa
 import fastui.forms as _forms
 import pydantic as _p
+import hashlib
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import MetaInfo
@@ -93,3 +94,17 @@ def patched_fastui_form(model: type[_forms.FormModel]) -> _params.Depends:
                 )
 
     return _fa.Depends(run_fastui_form)
+
+
+def hash_password(password: str) -> str:
+    encode: _t.Callable[[str]] = lambda password: password.encode("utf-8")  # noqa E731
+    loop_pass = password
+
+    for _ in range(50):
+        encoded = encode(loop_pass)
+
+        hashed = hashlib.sha256(encoded).hexdigest()
+
+        loop_pass = hashed
+
+    return loop_pass

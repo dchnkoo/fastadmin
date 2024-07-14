@@ -669,9 +669,7 @@ class FastAdminComponents(Files):
                             _t.Optional[column.python_type],
                             p.Field(
                                 default=value,
-                                title=column.options.title
-                                if column.options.title
-                                else column.name.title(),
+                                title=(column.options.title or column.name).title(),
                             ),
                         )
                     },
@@ -711,9 +709,7 @@ class FastAdminComponents(Files):
                             _t.Optional[column.python_type],
                             p.Field(
                                 default=value,
-                                title=column.options.title
-                                if column.options.title
-                                else column.name.title(),
+                                title=(column.options.title or column.name).title(),
                                 json_schema_extra={"mode": "switch"},
                             ),
                         )

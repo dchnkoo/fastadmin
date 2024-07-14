@@ -192,3 +192,29 @@ class ModelActions(SQLModel2Pydantic):
         access: "AccessCredetinalsAdmin",
     ) -> tuple["BytesIO", mediatype, filename]:
         raise NotImplementedError
+
+    @classmethod
+    async def convert_to_selected_search_fields_foregins(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        metainfo: "MetaInfo",
+        data: dict,
+    ) -> None:
+        for column in metainfo.foregin_columns.values():
+            foregin_table = cls._get_table(column.foregin_key.table_name)
+            foregin_column = column.foregin_key.field_name
+
+            foregin_data = (
+                await foregin_table.get(
+                    session=session,
+                    where=getattr(foregin_table, foregin_column) == data[column.name],
+                    all_=False,
+                )
+            ).data
+
+            data[column.name] = {
+                "value": getattr(foregin_data, foregin_column),
+                "label": getattr(
+                    foregin_data, column.options.foregin.selected_foregin_field
+                ),
+            }

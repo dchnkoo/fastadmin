@@ -278,11 +278,19 @@ class FastAdminPages(comp.FastAdminComponents):
     ) -> list[c.AnyComponent]:
         meta_field = metainfo.columns.get(field)
 
-        data = await cls.get(
+        data = (
+            await cls.get(
+                session=session,
+                where=getattr(cls, meta_field.name) == meta_field.python_type(value),
+                all_=False,
+                to_dict=True,
+            )
+        ).data
+
+        await cls.convert_to_selected_search_fields_foregins(
             session=session,
-            where=getattr(cls, meta_field.name) == meta_field.python_type(value),
-            all_=False,
-            to_dict=True,
+            data=data,
+            metainfo=metainfo,
         )
 
         return cls.page_frame(
@@ -304,7 +312,7 @@ class FastAdminPages(comp.FastAdminComponents):
                         session=session,
                         metainfo=metainfo,
                         access=access,
-                        data=copy.deepcopy(data.data),
+                        data=copy.deepcopy(data),
                         table=table_name,
                         field=field,
                         value=value,
@@ -321,7 +329,7 @@ class FastAdminPages(comp.FastAdminComponents):
                             value=value,
                             metainfo=meta_field,
                             access=access,
-                            data=data.data,
+                            data=data,
                         )
                     ),
                     display_mode="page",

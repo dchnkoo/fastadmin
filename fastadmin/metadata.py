@@ -4,6 +4,7 @@ from fastadmin.model.db_manager import ModelDB, Result
 from fastadmin.model.actions import ModelActions
 
 from fastadmin.utils.descriptor.clas import classproperty
+from fastadmin.utils.func import hash_password
 import fastadmin.utils.types as _tb
 
 from fastadmin.interface.pages import FastAdminPages
@@ -15,7 +16,6 @@ from fastui import components as c, events as e
 
 from copy import deepcopy
 
-import hashlib as _hash
 import fastapi as _fa
 import pydantic as p
 import typing as _t
@@ -231,9 +231,7 @@ class FastAdminMeta(
     ):
         email, password = (
             auth_credentials.email,
-            _hash.sha256(
-                auth_credentials.password.get_secret_value().encode()
-            ).hexdigest(),
+            hash_password(auth_credentials.password.get_secret_value()),
         )
 
         if (
