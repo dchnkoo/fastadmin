@@ -11,3 +11,7 @@ UPDATE = EDIT + "/update"
 DELETE = DETAILS + "/delete"
 FILE_VIEW = DETAILS + "/{key}/image"
 IMAGE_DELETE = FILE_VIEW + "/delete"
+
+DOWNLOAD = DETAILS + "/download"
+DOWNLOAD_REDIRECT = DOWNLOAD + "/redirect"
+DOWNLOAD_PAGE = DOWNLOAD + "/page"

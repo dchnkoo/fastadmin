@@ -502,6 +502,107 @@ async def get_file(
         )
 
 
+@ui.get(urls.DOWNLOAD)
+async def download_file(
+    table: str,
+    field: str,
+    value: str,
+    limit: int = 1,
+    model: type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
+    metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
+    access: types.AccessCredentials = fa.Depends(
+        FastAdminConfig.admin_middleware.get_access_credentials
+    ),
+):
+    session = model.get_session()
+
+    async with session() as session:
+        file, mediatype, filename = await model.download_file(
+            session=session,
+            table=table,
+            field=field,
+            value=value,
+            limit=limit,
+            metainfo=metainfo,
+            access=access,
+        )
+
+        return fa.responses.StreamingResponse(
+            file,
+            media_type=mediatype,
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Length": str(len(file.getvalue())),
+            },
+        )
+
+
+@ui.get(urls.DOWNLOAD_PAGE, response_class=fa.responses.HTMLResponse)
+async def download_page(table: str, field: str, value: str, limit: int = 1):
+    page = """
+    <div style="display:grid;place-content:center;height:100vh;">
+        <p>Для заванатження файлу натисніть кнопку нижче:</p>
+        <div style="text-align:center;">
+            <button
+              style="border:none;background-color: black;color: white;padding: 1rem;"
+              id="downloadBtn"
+            >Завантажити</button>
+        </div>
+    </div>
+    <script>
+        document.getElementById('downloadBtn').addEventListener('click', async () => {
+            const requestUrl = `%(download_url)s`;
+
+            try {
+                const response = await fetch(requestUrl);
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = downloadUrl;
+
+                const filename = response.headers.get('Content-Disposition').split('filename=')[1];
+                a.download = filename;
+
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(downloadUrl);
+            } catch (error) {
+                console.error('There was an error downloading the file:', error);
+            }
+        });
+    </script>
+    """
+
+    download_url = (
+        FastAdminConfig.api_root_url
+        + urls.DOWNLOAD.format(table=table, field=field, value=value)
+        + f"?limit={limit}"
+    )
+
+    return page % {"download_url": download_url}
+
+
+@ui.get(
+    urls.DOWNLOAD_REDIRECT,
+    response_model=FastUI,
+    response_model_exclude_none=True,
+)
+async def redirect_to_download_page(
+    table: str, field: str, value: str, limit: int = 1
+) -> list[c.AnyComponent]:
+    url = (
+        FastAdminConfig.api_root_url
+        + urls.DOWNLOAD_PAGE.format(table=table, field=field, value=value)
+        + f"?limit={limit}"
+    )
+
+    return [c.FireEvent(event=e.GoToEvent(url=url, target="_blank"))]
+
+
 main = fa.FastAPI(include_in_schema=False)
 
 

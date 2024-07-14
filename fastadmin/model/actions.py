@@ -12,9 +12,13 @@ if _t.TYPE_CHECKING:
     from fastadmin.middleware.jwt import AccessCredetinalsAdmin
     from sqlalchemy.ext.asyncio import AsyncSession
     from pydantic import BaseModel
+    from io import BytesIO
 
 
 T = _t.TypeVar("T")
+
+mediatype: _t.TypeAlias = str
+filename: _t.TypeAlias = str
 
 
 class ModelActions(SQLModel2Pydantic):
@@ -175,3 +179,16 @@ class ModelActions(SQLModel2Pydantic):
             return params
 
         return get
+
+    @classmethod
+    async def download_file(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        table: str,
+        field: str,
+        value: str,
+        limit: int,
+        metainfo: "MetaInfo",
+        access: "AccessCredetinalsAdmin",
+    ) -> tuple["BytesIO", mediatype, filename]:
+        raise NotImplementedError

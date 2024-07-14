@@ -10,6 +10,7 @@ import pydantic as p
 import typing as _t
 import base64
 import pickle
+import enum
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import FastAdminMeta, MetaInfo
@@ -734,3 +735,83 @@ class FastAdminComponents(Files):
                 )
 
         return filters
+
+    @classmethod
+    def download_component(cls: type["FastAdminMeta"], data: dict):
+        table = cls.download.get("table")
+        field = cls.download.get("field")
+        value = cls.download.get("value")(data)
+        limit = cls.download.get("limit", 1)
+
+        urls = cls._get_urls()
+
+        metainfo = cls.__get_metainfo__(table=table)
+
+        content = []
+
+        button = c.Button(
+            text=FastAdminConfig.words.download_txt
+            % ((metainfo.table_title or metainfo.table_db_name).lower(),),
+            html_type="button",
+            named_style="secondary",
+        )
+
+        url = FastAdminConfig.api_root_url + urls.DOWNLOAD_REDIRECT.format(
+            table=table, field=field, value=str(value)
+        )
+
+        if issubclass(limit.__class__, enum.EnumType):
+            button.on_click = e.PageEvent(name="choose-limit")
+
+            Choose = p.create_model("Choose", limit=(limit, ...))
+
+            content.extend(
+                [
+                    button,
+                    c.Modal(
+                        title=FastAdminConfig.words.download_title_modal,
+                        open_trigger=e.PageEvent(name="choose-limit"),
+                        body=[
+                            c.ModelForm(
+                                submit_on_change=True,
+                                submit_url=url,
+                                method="GET",
+                                model=Choose,
+                                footer=[],
+                            )
+                        ],
+                        footer=[
+                            c.Button(
+                                text=FastAdminConfig.words.cancel,
+                                on_click=e.PageEvent(name="choose-limit", clear=True),
+                                named_style="secondary",
+                            )
+                        ],
+                    ),
+                ]
+            )
+
+        else:
+            button.on_click = e.PageEvent(name="request-download")
+
+            content.extend(
+                [
+                    button,
+                    c.Form(
+                        submit_url=url,
+                        submit_trigger=e.PageEvent(name="request-download"),
+                        method="GET",
+                        form_fields=[
+                            c.FormFieldInput(
+                                name="limit",
+                                title="",
+                                html_type="hidden",
+                                initial=limit,
+                            )
+                        ],
+                        footer=[],
+                    ),
+                ]
+            )
+
+        return c.Div(components=content, class_name="m-3")

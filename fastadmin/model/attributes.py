@@ -4,6 +4,7 @@ from fastadmin.utils.descriptor.clas import classproperty
 
 import pydantic as p
 import typing as _t
+import enum
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import FastAdminMeta
@@ -344,4 +345,28 @@ class ModelAttributes:
     hide_in_link: bool = False
     """
     if value is True it doesn't will be shows in table links
+    """
+
+    download: _t.Optional[
+        dict[str, str | str | _t.Callable[[dict], str] | int | type[enum.Enum]]
+    ] = None
+    """
+    Example realize for download file:
+
+    ```python
+    download: _t.Optional[
+        dict[str,
+            str |
+            str |
+            _t.Callable[[dict], str] |
+            int |
+            type[enum.Enum]
+        ]
+    ] = {
+        "table": "table name from you want download data",
+        "field": "the field that will be searched in this data table for download",
+        "value": "lambda function to which the dict object will be passed with data from which the value to use value should be returned",
+        "limit": "limit for data to download. It can be StrEnum with int values where user can choose limit.",
+    }
+    ```
     """

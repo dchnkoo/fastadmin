@@ -15,6 +15,8 @@ class AdminWords:
         edit_page_heading: str = "Edit %s",
         search: str = "Search",
         filter_text: str = "Filters",
+        download_txt: str = "Download %s",
+        download_title_modal: str = "Choose limit data for download",
     ) -> None:
         self.add = add
         self.logout = logout
@@ -30,3 +32,5 @@ class AdminWords:
         self.edit_page_heading = edit_page_heading
         self.search = search
         self.filter_text = filter_text
+        self.download_txt = download_txt
+        self.download_title_modal = download_title_modal

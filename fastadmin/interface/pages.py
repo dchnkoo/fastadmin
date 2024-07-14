@@ -210,6 +210,9 @@ class FastAdminPages(comp.FastAdminComponents):
 
         cls.set_foregin_links_to_details(table=table, detail=detail, body=body)
 
+        if cls.download is not None:
+            body.append(cls.download_component(data=detail.data))
+
         return cls.page_frame(
             heading=[
                 *cls.header(

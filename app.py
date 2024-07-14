@@ -38,6 +38,9 @@ def images_validator(cls, v):
     return prem_validator(cls, v)
 
 
+LIMITS = Enum("Limits", {f"num_{v}": str(v) for v in range(10, 101, 10)}, type=str)
+
+
 class Worker(FastAdminMeta, Base):
     __tablename__ = "some_worker"
 
@@ -47,6 +50,13 @@ class Worker(FastAdminMeta, Base):
     images = sa.Column(sa.ARRAY(sa.LargeBinary), nullable=True)
 
     name = sa.Column(sa.String, nullable=False)
+
+    download = {
+        "table": "some_user",
+        "field": "worker",
+        "limit": LIMITS,
+        "value": lambda data: data.get("id"),
+    }
 
     form = {
         "exclude": ["id"],
