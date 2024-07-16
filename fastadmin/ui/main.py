@@ -10,6 +10,7 @@ from fastui import FastUI, auth as uiauth
 
 import pydantic as p
 import typing as _t
+import copy
 
 
 auth = fa.FastAPI(include_in_schema=False)
@@ -24,13 +25,16 @@ async def autheficate(
     auth: _t.Annotated[
         FastAdminConfig.auth_model, forms.fastui_form(FastAdminConfig.auth_model)
     ],
+    request: fa.Request,
 ) -> list[c.AnyComponent]:
     admin = FastAdminMeta._get_admin()
 
     session = admin.get_session()
 
     async with session() as session:
-        return await admin.authefication(auth_credentials=auth, session=session)
+        return await admin.authefication(
+            auth_credentials=auth, session=session, request=request
+        )
 
 
 @auth.get(
@@ -70,6 +74,7 @@ ui.add_middleware(FastAdminConfig.admin_middleware)
 
 @ui.post(urls.EXIT)
 async def exit(
+    request: fa.Request,
     user: types.AccessCredentials = fa.Depends(
         FastAdminConfig.admin_middleware.get_access_credentials_or_none
     ),
@@ -79,7 +84,7 @@ async def exit(
     session = admin.get_session()
 
     async with session() as session:
-        return await admin.exit(user=user, session=session)
+        return await admin.exit(user=user, session=session, request=request)
 
 
 @ui.get(
@@ -89,6 +94,7 @@ async def exit(
 )
 async def home_page(
     table: str,
+    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     field: _t.Optional[str] = None,
@@ -104,7 +110,7 @@ async def home_page(
         FastAdminMeta.get_params_values_with_prefix("bool_")
     ),
 ) -> list[c.AnyComponent]:
-    admin_model: p.BaseModel = model._admin
+    admin_model: p.BaseModel = model._trash
 
     session = model.get_session()
 
@@ -112,6 +118,7 @@ async def home_page(
         return await model.home(
             pydantic_model=admin_model,
             metainfo=metainfo,
+            request=request,
             table_name=table,
             session=session,
             search=search,
@@ -132,6 +139,7 @@ async def details_page(
     table: str,
     field: str,
     value: str,
+    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     access: types.AccessCredentials = fa.Depends(
@@ -147,6 +155,7 @@ async def details_page(
             session=session,
             pydantic_model=pydantic_model,
             table=table,
+            request=request,
             field=field,
             value=value,
             metainfo=metainfo,
@@ -160,6 +169,7 @@ async def search_response(
     from_table: str,
     foregin_field: str,
     from_table_field: str,
+    request: fa.Request,
     q: _t.Optional[str] = None,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
@@ -177,6 +187,7 @@ async def search_response(
         return await model.selected_search_response(
             session=session,
             foregin_table=metainfo,
+            request=request,
             from_table=from_table,
             foregin_field=foregin_field,
             from_table_field=from_table_field,
@@ -222,6 +233,7 @@ async def edit_form_page(
     table: str,
     field: str,
     value: str,
+    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     access: types.AccessCredentials = fa.Depends(
@@ -237,6 +249,7 @@ async def edit_form_page(
             session=session,
             pydantic_model=pydantic_model,
             table_name=table,
+            request=request,
             field=field,
             value=value,
             metainfo=metainfo,
@@ -249,6 +262,7 @@ async def edit_data(
     table: str,
     field: str,
     value: str,
+    request: fa.Request,
     form: _t.AsyncGenerator[type[p.BaseModel], _t.Any] = fa.Depends(
         FastAdminMeta._get_form(edit=True)
     ),
@@ -275,11 +289,23 @@ async def edit_data(
                     field=field,
                     value=value,
                     metainfo=metainfo,
+                    request=request,
                 )
 
                 meta_field = metainfo.columns.get(field)
 
-                new_data = await model.update(
+                old_data = (
+                    await model.get(
+                        session=session,
+                        where=getattr(model, meta_field.name)
+                        == meta_field.python_type(value),
+                        all_=False,
+                    )
+                ).data
+
+                old_data = copy.deepcopy(old_data)
+
+                await model.update(
                     session=session,
                     where=getattr(model, meta_field.name)
                     == meta_field.python_type(value),
@@ -289,14 +315,16 @@ async def edit_data(
                 await model.after_saving(
                     session=session,
                     signal="edit_form",
-                    data=new_data,
+                    data=old_data,
                     access=access,
                     table_name=table,
                     model=item,
                     field=field,
                     value=value,
                     metainfo=metainfo,
+                    request=request,
                 )
+
             except Exception as exc:
                 raise fa.HTTPException(
                     status_code=fa.status.HTTP_400_BAD_REQUEST, detail=str(exc)
@@ -312,6 +340,7 @@ async def edit_data(
 )
 async def form_page(
     table: str,
+    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     access: types.AccessCredentials = fa.Depends(
@@ -329,12 +358,14 @@ async def form_page(
             table_name=table,
             metainfo=metainfo,
             access=access,
+            request=request,
         )
 
 
 @add.post(urls.FORM_ADD)
 async def add_data(
     table: str,
+    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     form: _t.AsyncGenerator[type[p.BaseModel], _t.Any] = fa.Depends(
         FastAdminMeta._get_form()
@@ -359,6 +390,7 @@ async def add_data(
                     table_name=table,
                     model=item,
                     metainfo=metainfo,
+                    request=request,
                 )
 
                 new_data = await model.insert(session=session, **data)
@@ -371,6 +403,7 @@ async def add_data(
                     table_name=table,
                     model=item,
                     metainfo=metainfo,
+                    request=request,
                 )
 
             except Exception as exc:
@@ -386,6 +419,7 @@ async def delete_item(
     table: str,
     field: str,
     value: str,
+    request: fa.Request,
     model: _t.Type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
     access: types.AccessCredentials = fa.Depends(
@@ -399,7 +433,9 @@ async def delete_item(
     async with session() as session:
         where = getattr(model, meta_field.name) == meta_field.python_type(value)
 
-        data = await model.get(session=session, where=where, all_=False, to_dict=True)
+        data = (
+            await model.get(session=session, where=where, all_=False, to_dict=True)
+        ).data
 
         try:
             await model.before_delete(
@@ -409,17 +445,20 @@ async def delete_item(
                 metainfo=metainfo,
                 access=access,
                 data=data,
+                request=request,
             )
 
             await model.delete(session=session, where=where)
 
             await model.after_delete(
+                session=session,
                 table=table,
                 field=field,
                 value=value,
                 metainfo=metainfo,
                 access=access,
                 data=data,
+                request=request,
             )
 
         except Exception as exc:
@@ -480,6 +519,7 @@ async def get_file(
     field: str,
     value: str,
     key: str,
+    request: fa.Request,
     index: _t.Optional[int] = None,
     model: type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
@@ -491,6 +531,7 @@ async def get_file(
 
     async with session() as session:
         return await model.image_page(
+            request=request,
             session=session,
             table=table,
             field=field,
@@ -507,6 +548,7 @@ async def download_file(
     table: str,
     field: str,
     value: str,
+    request: fa.Request,
     limit: int = 1,
     model: type[FastAdminMeta] = fa.Depends(FastAdminMeta._get_table),
     metainfo: MetaInfo = fa.Depends(FastAdminMeta.__get_metainfo__),
@@ -525,6 +567,7 @@ async def download_file(
             limit=limit,
             metainfo=metainfo,
             access=access,
+            request=request,
         )
 
         return fa.responses.StreamingResponse(

@@ -17,6 +17,8 @@ class AdminWords:
         filter_text: str = "Filters",
         download_txt: str = "Download %s",
         download_title_modal: str = "Choose limit data for download",
+        result_word: str = "results",
+        per_page_word: str = "per page",
     ) -> None:
         self.add = add
         self.logout = logout
@@ -34,3 +36,5 @@ class AdminWords:
         self.filter_text = filter_text
         self.download_txt = download_txt
         self.download_title_modal = download_title_modal
+        self.result_word = result_word
+        self.per_page_word = per_page_word

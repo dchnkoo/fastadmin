@@ -7,6 +7,7 @@ from fastui import components as c, events as e
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import pydantic as p
+import fastapi as _fa
 import typing as _t
 import copy
 
@@ -20,6 +21,7 @@ class FastAdminPages(comp.FastAdminComponents):
     async def home(
         cls: type["FastAdminMeta"],
         table_name: str,
+        request: _fa.Request,
         metainfo: "MetaInfo",
         session: AsyncSession,
         pydantic_model: _t.Type[p.BaseModel],
@@ -30,6 +32,8 @@ class FastAdminPages(comp.FastAdminComponents):
         enums: dict[str, str],
         bools: dict[str, str],
     ) -> list[c.AnyComponent]:
+        offset = (page - 1) * cls.table_size
+
         data = await search_func(
             session=session,
             metainfo=metainfo,
@@ -39,6 +43,8 @@ class FastAdminPages(comp.FastAdminComponents):
             bools=bools,
             count=True,
             to_dict=True,
+            offset=offset,
+            limit=cls.table_size,
         )
 
         class SearchInput(p.BaseModel):
@@ -55,7 +61,7 @@ class FastAdminPages(comp.FastAdminComponents):
 
         body = [
             c.Heading(
-                text=cls.__title__ if cls.__title__ else metainfo.table_class_name,
+                text=(cls.__title__ or metainfo.table_class_name).title(),
                 level=2,
                 class_name="+ my-2",
             ),
@@ -63,7 +69,11 @@ class FastAdminPages(comp.FastAdminComponents):
                 links=cls._get_home_links(), mode="tabs", class_name="+ mt-2 mb-4"
             ),
             c.Heading(
-                text=FastAdminConfig.words.filter_text, level=4, class_name="+ my-2"
+                text=FastAdminConfig.words.filter_text
+                + f" ({FastAdminConfig.words.result_word}: {data.count} - \
+                    {FastAdminConfig.words.per_page_word}: {len(data.data)})",
+                level=4,
+                class_name="+ my-2",
             ),
             c.Div(
                 components=[
@@ -140,6 +150,7 @@ class FastAdminPages(comp.FastAdminComponents):
     async def details(
         cls: type["FastAdminMeta"],
         session: AsyncSession,
+        request: _fa.Request,
         pydantic_model: _t.Type[p.BaseModel],
         table: str,
         field: str,
@@ -229,6 +240,7 @@ class FastAdminPages(comp.FastAdminComponents):
     async def form_page(
         cls: type["FastAdminMeta"],
         session: AsyncSession,
+        request: _fa.Request,
         pydantic_model: _t.Type[p.BaseModel],
         table_name: str,
         metainfo: "MetaInfo",
@@ -269,6 +281,7 @@ class FastAdminPages(comp.FastAdminComponents):
     async def edit_form_page(
         cls: type["FastAdminMeta"],
         session: AsyncSession,
+        request: _fa.Request,
         pydantic_model: _t.Type[p.BaseModel],
         table_name: str,
         field: str,
@@ -327,7 +340,7 @@ class FastAdminPages(comp.FastAdminComponents):
                             table=table_name,
                             field=field,
                             value=value,
-                            metainfo=meta_field,
+                            metainfo=metainfo,
                             access=access,
                             data=data,
                         )
@@ -352,6 +365,7 @@ class FastAdminPages(comp.FastAdminComponents):
     @classmethod
     async def image_page(
         cls: type["FastAdminMeta"],
+        request: _fa.Request,
         session: "AsyncSession",
         table: str,
         field: str,

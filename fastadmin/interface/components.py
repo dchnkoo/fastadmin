@@ -7,6 +7,8 @@ from fastadmin.conf import FastAdminConfig
 import starlette.datastructures as starlette
 
 import pydantic as p
+import fastapi as _fa
+import copy
 import typing as _t
 import base64
 import pickle
@@ -46,10 +48,13 @@ class Files:
         ).data
 
         for key in cls.find_files_in_data(data=data):
-            if isinstance(old_data[key], list):
+            if isinstance(data[key], list):
                 data[key] = [
                     cls.convert_python_obj_to_file_bytes(item) for item in data[key]
                 ]
+
+                if old_data[key] is None:
+                    old_data[key] = []
 
                 old_data[key].extend(data[key])
 
@@ -84,7 +89,11 @@ class Files:
             elif (
                 isinstance(value, bytes)
                 and isinstance(
-                    (file := cls.convert_bytes_file_to_python_obj(value)),
+                    (
+                        file := cls.convert_bytes_file_to_python_obj(
+                            copy.deepcopy(value)
+                        )
+                    ),
                     starlette.UploadFile,
                 )
                 and check_right_file_type(file=file)
@@ -113,7 +122,7 @@ class Files:
 
                     continue
 
-                if all(
+                if len(value) > 0 and all(
                     isinstance(item, starlette.UploadFile)
                     and check_right_file_type(item)
                     for item in value
@@ -122,7 +131,7 @@ class Files:
 
                 elif files := [
                     file
-                    for item in value
+                    for item in copy.deepcopy(value)
                     if isinstance(item, bytes)
                     and isinstance(
                         (file := cls.convert_bytes_file_to_python_obj(item)),
@@ -520,7 +529,10 @@ class FastAdminComponents(Files):
             meta_field = metainfo.columns.get(column_name)
             index = list_keys.index(column_name)
 
-            if column_name in metainfo.foregin_columns:
+            if (
+                column_name in metainfo.foregin_columns
+                and data[column_name] is not None
+            ):
                 lookup = c.display.DisplayLookup(
                     field=meta_field.name,
                     on_click=e.GoToEvent(
@@ -545,6 +557,7 @@ class FastAdminComponents(Files):
     async def selected_search_response(
         cls: type["FastAdminMeta"],
         session: "AsyncSession",
+        request: _fa.Request,
         foregin_table: "MetaInfo",
         from_table: "MetaInfo",
         foregin_field: str,
@@ -554,7 +567,7 @@ class FastAdminComponents(Files):
     ) -> forms.SelectSearchResponse:
         options = []
 
-        meta_from_field = from_table.foregin_columns.get(from_table_field)
+        meta_from_field = from_table.columns.get(from_table_field)
 
         result = await search_func(
             session=session,

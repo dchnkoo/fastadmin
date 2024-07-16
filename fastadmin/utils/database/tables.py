@@ -1,10 +1,15 @@
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
+from fastadmin.middleware.jwt import AccessCredetinalsAdmin
 from fastadmin.utils.database.permissions import Permissions
-from fastadmin.metadata import FastAdminMeta
+from fastadmin.metadata import FastAdminMeta, MetaInfo
+from fastadmin.utils.func import hash_password
 from fastadmin.conf import FastAdminConfig
 
 from fastui import events as e, components as c
+import typing as _t
 
 
 class AdminUser(Permissions, FastAdminMeta, FastAdminConfig.sqlalchemy_metadata):
@@ -28,3 +33,18 @@ class AdminUser(Permissions, FastAdminMeta, FastAdminConfig.sqlalchemy_metadata)
     admin = {"exclude": ["id", "password"]}
 
     repr = {"exclude": admin["exclude"] + ["is_admin", "is_super", "permissions"]}
+
+    @classmethod
+    async def before_saving(
+        cls,
+        signal: _t.Literal["form", "edit_form"],
+        session: AsyncSession,
+        data: dict[str, _t.Any],
+        model: type[BaseModel],
+        access: AccessCredetinalsAdmin,
+        table_name: str,
+        metainfo: MetaInfo,
+        **kw,
+    ) -> None:
+        if signal == "form":
+            data["password"] = hash_password(data["password"])

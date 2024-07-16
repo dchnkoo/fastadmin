@@ -116,12 +116,16 @@ class ModelActions(SQLModel2Pydantic):
         else:
             await cls.convert_file_obj_to_bytes(data)
 
+        cls.convert_form_foregin_types(data=data, metainfo=metainfo)
+
+        await cls.generate_slug(session=session, metainfo=metainfo, data=data)
+
     @classmethod
     async def after_saving(
         cls: type["FastAdminMeta"],
         signal: _t.Literal["form", "edit_form"],
         session: "AsyncSession",
-        data: type[sa.Table],
+        data: type["sa.Table"],
         model: type[p.BaseModel],
         access: "AccessCredetinalsAdmin",
         table_name: str,
@@ -146,6 +150,7 @@ class ModelActions(SQLModel2Pydantic):
     @classmethod
     async def before_delete(
         cls: type["FastAdminMeta"],
+        request: _fa.Request,
         table: str,
         field: str,
         value: str,
@@ -158,7 +163,9 @@ class ModelActions(SQLModel2Pydantic):
     @classmethod
     async def after_delete(
         cls: type["FastAdminMeta"],
+        session: "AsyncSession",
         table: str,
+        request: _fa.Request,
         field: str,
         value: str,
         metainfo: "MetaInfo",
@@ -183,6 +190,7 @@ class ModelActions(SQLModel2Pydantic):
     @classmethod
     async def download_file(
         cls: type["FastAdminMeta"],
+        request: _fa.Request,
         session: "AsyncSession",
         table: str,
         field: str,
@@ -201,20 +209,86 @@ class ModelActions(SQLModel2Pydantic):
         data: dict,
     ) -> None:
         for column in metainfo.foregin_columns.values():
-            foregin_table = cls._get_table(column.foregin_key.table_name)
-            foregin_column = column.foregin_key.field_name
+            if data[column.name] is not None:
+                foregin_table = cls._get_table(column.foregin_key.table_name)
+                foregin_column = column.foregin_key.field_name
 
-            foregin_data = (
-                await foregin_table.get(
+                foregin_data = (
+                    await foregin_table.get(
+                        session=session,
+                        where=getattr(foregin_table, foregin_column)
+                        == data[column.name],
+                        all_=False,
+                    )
+                ).data
+
+                data[column.name] = {
+                    "value": str(getattr(foregin_data, foregin_column)),
+                    "label": str(
+                        getattr(
+                            foregin_data, column.options.foregin.selected_foregin_field
+                        )
+                    ),
+                }
+
+    @classmethod
+    def convert_form_foregin_types(
+        cls: type["FastAdminMeta"],
+        data: dict,
+        metainfo: "MetaInfo",
+    ) -> None:
+        for column in metainfo.foregin_columns.values():
+            if column.name in data and data[column.name] is not None:
+                data[column.name] = column.python_type(data[column.name])
+
+    @staticmethod
+    def slugify(slug: str):
+        if slug.count(" "):
+            return "-".join([word.lower() for word in slug.split(" ")])
+
+        elif slug.count("-"):
+            return "-".join([word.lower() for word in slug.split("-")])
+
+        else:
+            return slug.lower()
+
+    @classmethod
+    async def generate_slug(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        metainfo: "MetaInfo",
+        data: dict,
+    ):
+        if hasattr(cls, "slug") is False:
+            return
+
+        slug = []
+
+        for column in metainfo.foregin_columns.values():
+            if data[column.name] is None:
+                continue
+
+            table = cls._get_table(column.foregin_key.table_name)
+            field = column.foregin_key.field_name
+
+            get = (
+                await table.get(
                     session=session,
-                    where=getattr(foregin_table, foregin_column) == data[column.name],
+                    where=getattr(table, field) == data[column.name],
                     all_=False,
                 )
             ).data
 
-            data[column.name] = {
-                "value": str(getattr(foregin_data, foregin_column)),
-                "label": str(
-                    getattr(foregin_data, column.options.foregin.selected_foregin_field)
-                ),
-            }
+            if hasattr(get, "slug"):
+                get_slug: str = getattr(get, "slug")
+
+                slug.append(cls.slugify(get_slug))
+
+            else:
+                get_slug = getattr(get, column.options.foregin.selected_foregin_field)
+
+                slug.append(cls.slugify(get_slug))
+
+        slug.append(cls.slugify(data[cls.slugify_field]).lower())
+
+        data["slug"] = "-".join(slug)

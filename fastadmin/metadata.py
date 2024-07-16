@@ -1,10 +1,10 @@
 from fastadmin.model.sqlmodel2pydantic import SQLModel2Pydantic
 from fastadmin.model.attributes import ModelAttributes
-from fastadmin.model.db_manager import ModelDB, Result
+from fastadmin.model.db_manager import ModelDB
 from fastadmin.model.actions import ModelActions
 
 from fastadmin.utils.descriptor.clas import classproperty
-from fastadmin.utils.func import hash_password
+from fastadmin.utils.func import check_password
 import fastadmin.utils.types as _tb
 
 from fastadmin.interface.pages import FastAdminPages
@@ -227,35 +227,31 @@ class FastAdminMeta(
 
     @classmethod
     async def authefication(
-        cls, auth_credentials: type[p.BaseModel], session: AsyncSession
+        cls,
+        auth_credentials: type[p.BaseModel],
+        session: AsyncSession,
+        request: _fa.Request,
     ):
         email, password = (
             auth_credentials.email,
-            hash_password(auth_credentials.password.get_secret_value()),
+            auth_credentials.password.get_secret_value(),
         )
 
-        if (
-            await cls.exists(
-                cls.email == email,
-                cls.is_admin.is_(True),
+        user: _t.Optional[cls] = (
+            await cls.get(
                 session=session,
+                where=cls.email == email,
+                all_=False,
+                count=True,
             )
-            is False
-        ):
+        ).data
+
+        if user is None:
             raise _fa.HTTPException(
                 status_code=_fa.status.HTTP_404_NOT_FOUND, detail="User doesn't exists."
             )
 
-        user: Result = await cls.get(
-            session=session,
-            where=(cls.email == email, cls.password == password),
-            all_=False,
-            count=True,
-        )
-
-        user = user.data
-
-        if user is None:
+        if check_password(password, user.password) is False:
             raise _fa.HTTPException(
                 status_code=_fa.status.HTTP_423_LOCKED, detail="Incorrect password."
             )
@@ -275,7 +271,9 @@ class FastAdminMeta(
         return response
 
     @classmethod
-    async def exit(cls, user: _tb.AccessCredentials, session: AsyncSession):
+    async def exit(
+        cls, user: _tb.AccessCredentials, session: AsyncSession, request: _fa.Request
+    ):
         response = _fa.responses.JSONResponse(
             content=[
                 c.FireEvent(
@@ -294,13 +292,23 @@ class FastAdminMeta(
         return response
 
 
+T = _t.TypeVar("T")
+
+
 class ForeginOptions(p.BaseModel):
     selected_foregin_field: _t.Optional[str] = None
+    column_type: T = str
+
+    @p.field_validator("column_type", mode="before")
+    def column_type_validator(cls: "ForeginOptions", v: T):
+        if v is None:
+            return str
+        return v
 
 
 class ColumnOptions(p.BaseModel):
     title: _t.Optional[str] = None
-    foregin: _t.Optional[ForeginOptions] = None
+    foregin: ForeginOptions = ForeginOptions()
 
 
 class ForeginKey(p.BaseModel):

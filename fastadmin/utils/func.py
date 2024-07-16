@@ -6,6 +6,7 @@ import fastapi as _fa
 import fastui.forms as _forms
 import pydantic as _p
 import hashlib
+import bcrypt
 
 if _t.TYPE_CHECKING:
     from fastadmin.metadata import MetaInfo
@@ -43,10 +44,11 @@ async def search_func(
         search = search.split(" ") if " " in search else [search]
 
         for key, _ in metainfo.columns.items():
-            for word in search:
-                where_or.append(
-                    sa.cast(getattr(table, key), sa.String).ilike(f"%{word}%")
+            where_or.append(
+                sa.cast(getattr(table, key), sa.String).ilike(
+                    "%" + "%".join(search) + "%"
                 )
+            )
 
     for name, value in enums.items():
         meta_enum_column = metainfo.enum_columns.get(name)
@@ -96,7 +98,7 @@ def patched_fastui_form(model: type[_forms.FormModel]) -> _params.Depends:
     return _fa.Depends(run_fastui_form)
 
 
-def hash_password(password: str) -> str:
+def loop_password(password: str) -> str:
     encode: _t.Callable[[str]] = lambda password: password.encode("utf-8")  # noqa E731
     loop_pass = password
 
@@ -108,3 +110,19 @@ def hash_password(password: str) -> str:
         loop_pass = hashed
 
     return loop_pass
+
+
+def hash_password(password: str) -> str:
+    password = loop_password(password=password).encode("utf-8")
+
+    salt = bcrypt.gensalt()
+
+    hashed = bcrypt.hashpw(password, salt)
+
+    return hashed.decode("utf-8")
+
+
+def check_password(password: str, hashed_password: str) -> bool:
+    password = loop_password(password)
+
+    return bcrypt.checkpw(password.encode("utf-8"), hashed_password.encode("utf-8"))

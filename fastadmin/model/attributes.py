@@ -270,6 +270,8 @@ class ModelAttributes:
     ```
     """
 
+    trash: _t.Union[p.BaseModel, _t.Dict[str, _t.Any]] = {}
+
     can_add: bool = True
     """
     If the attribute is True, then it will be possible to add data from the admin panel to the table.
@@ -303,23 +305,13 @@ class ModelAttributes:
 
         meta = cls.__get_metainfo__(cls.__tablename__)
 
-        if meta.unique_columns:
-            column = list(meta.unique_columns.keys())[0]
+        column = list(meta.primary_columns.keys())[0]
 
-            url = f"./{column}" + "/{" + column + "}"
+        url = f"./{column}" + "/{" + column + "}"
 
-            lookups.append(
-                c.display.DisplayLookup(field=column, on_click=e.GoToEvent(url=url))
-            )
-
-        else:
-            column = list(meta.primary_columns.keys())[0]
-
-            url = f"./{column}" + "/{" + column + "}"
-
-            lookups.append(
-                c.display.DisplayLookup(field=column, on_click=e.GoToEvent(url=url))
-            )
+        lookups.append(
+            c.display.DisplayLookup(field=column, on_click=e.GoToEvent(url=url))
+        )
 
         for column in meta.columns:
             if column != lookups[0].field and column not in exclude:
@@ -369,4 +361,9 @@ class ModelAttributes:
         "limit": "limit for data to download. It can be StrEnum with int values where user can choose limit.",
     }
     ```
+    """
+
+    slugify_field: str
+    """
+    Implement this variable if you use slug field in your model.
     """

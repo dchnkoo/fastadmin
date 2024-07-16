@@ -354,7 +354,9 @@ class FastAdminJWT(AbsractJWTMiddleware):
             user_id = await self.get_refresh_credentials_or_none(request=request)
 
             if user_id is None:
-                raise _fa.HTTPException(status_code=_fa.status.HTTP_401_UNAUTHORIZED)
+                return _fa.responses.JSONResponse(
+                    status_code=_fa.status.HTTP_401_UNAUTHORIZED, content=""
+                )
 
             from fastadmin.metadata import FastAdminMeta
 
@@ -390,6 +392,8 @@ class FastAdminJWT(AbsractJWTMiddleware):
 
         except Exception as exc:
             print(exc)
-            raise _fa.HTTPException(status_code=_fa.status.HTTP_400_BAD_REQUEST)
+            return _fa.responses.JSONResponse(
+                status_code=_fa.status.HTTP_400_BAD_REQUEST, content=""
+            )
 
         return await call_next(request)

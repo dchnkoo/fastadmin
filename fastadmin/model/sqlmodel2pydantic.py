@@ -103,7 +103,9 @@ class SQLModel2Pydantic:
                 if (options.nullable and options.default_value is None)
                 else PydanticUndefined
                 if options.default_value is None
-                else options.default_value,
+                else options.default_value
+                if callable(options.default_value) is False
+                else None,
                 title=options.options.title,
                 json_schema_extra={},
             )
@@ -118,11 +120,8 @@ class SQLModel2Pydantic:
 
                 column_field_config.json_schema_extra["search_url"] = url
 
-                if model_type in ("form", "edit_form"):
-                    if _t.get_origin(column_type) is _t.Optional:
-                        column_type = _t.Optional[str]
-                    else:
-                        column_type = str
+                if model_type in ("edit_form", "form"):
+                    column_type = options.options.foregin.column_type
 
             config_dict[name] = (column_type, column_field_config)
 
