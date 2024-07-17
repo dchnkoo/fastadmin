@@ -83,7 +83,6 @@ class FastAdmin(_fa.FastAPI):
     def __init__(
         self,
         *,
-        sql_db_uri: types.URI_WITH_ASYNC_DRIVER,
         secret_token: _t.Union[_t.Callable[[], _t.Coroutine[_t.Any, _t.Any, str]], str],
         sqlalchemy_metadata: _t.Optional[type["DeclarativeBase"]],
         admin_panel_words: _t.Optional["AdminWords"] = None,
@@ -139,7 +138,6 @@ class FastAdmin(_fa.FastAPI):
         """
         super().__init__(**fastapi_options)
 
-        FastAdminConfig.sql_db_uri = self.sql_db_uri = sql_db_uri
         FastAdminConfig.default_title = self.default_title = default_title
         FastAdminConfig.api_root_url = self.api_root_url = api_root_url
         FastAdminConfig.api_path_mode = self.api_path_mode = api_path_mode

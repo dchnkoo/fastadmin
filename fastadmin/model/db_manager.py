@@ -1,8 +1,7 @@
 from fastadmin.utils.database.asyn import _AsyncDB, _DB, Result
-from fastadmin.conf import FastAdminConfig
 import fastadmin.utils.types as _tb
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, AsyncEngine
 from sqlalchemy.sql import _typing as _sa_t
 import sqlalchemy as _sa
 
@@ -10,24 +9,12 @@ import typing as _t
 
 
 class ModelDB(_AsyncDB):
-    @classmethod
-    def get_session(
-        cls: _t.Type[_DB],
-        expire_on_commit: bool = False,
-        info: _t.Optional[_sa_t._InfoType] = None,
-        **kw,
-    ) -> async_sessionmaker[AsyncSession]:
-        return async_sessionmaker(
-            bind=_AsyncDB.create_engine(url=FastAdminConfig.sql_db_uri),
-            class_=AsyncSession,
-            expire_on_commit=expire_on_commit,
-            info=info,
-            **kw,
-        )
+    engine: AsyncEngine
+    get_session: async_sessionmaker[AsyncSession]
 
     @classmethod
     async def exists(cls: _t.Type[_DB], *args, session: AsyncSession) -> bool:
-        return await super().exists(cls, *args, session=session)
+        return await super(ModelDB, cls).exists(cls, *args, session=session)
 
     @classmethod
     async def get(
@@ -62,7 +49,7 @@ class ModelDB(_AsyncDB):
         all_: bool = True,
         to_dict: bool = False,
     ) -> Result:
-        return await super().get(
+        return await super(ModelDB, cls).get(
             session=session,
             table=cls if table is None else table,
             where=where,
@@ -86,11 +73,13 @@ class ModelDB(_AsyncDB):
     async def insert(
         cls: _t.Type[_DB], session: AsyncSession, commit: bool = True, **kwargs
     ) -> _DB:
-        return await super().insert(table=cls, session=session, commit=commit, **kwargs)
+        return await super(ModelDB, cls).insert(
+            table=cls, session=session, commit=commit, **kwargs
+        )
 
     @classmethod
     async def update(
-        cls: _t.Type[_DB],
+        cls,
         session: AsyncSession,
         where: _t.Optional[
             _t.Union[
@@ -100,20 +89,20 @@ class ModelDB(_AsyncDB):
         commit: bool = True,
         **kwargs,
     ):
-        await super().update(
+        await super(ModelDB, cls).update(
             table=cls, session=session, where=where, commit=commit, **kwargs
         )
 
     @classmethod
     async def delete(
-        cls: _t.Type[_DB],
+        cls,
         session: AsyncSession,
         where: _t.Union[
             _sa_t.ColumnExpressionArgument, tuple[_sa_t.ColumnExpressionArgument]
         ],
         commit: bool = True,
     ):
-        await super().delete(
+        await super(ModelDB, cls).delete(
             table=cls,
             session=session,
             where=where,

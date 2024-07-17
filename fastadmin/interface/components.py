@@ -491,25 +491,21 @@ class FastAdminComponents(Files):
             ),
         ]
 
-        for info in cls.__meta_values__:
-            for foregin in info.foregin_columns.values():
-                if table == foregin.foregin_key.table_name:
-                    components.append(
-                        c.Button(
-                            text=(
-                                info.table_title
-                                if info.table_title
-                                else info.table_class_name
-                            ),
-                            on_click=e.GoToEvent(
-                                url=FastAdminConfig.api_path_strip
-                                + cls._get_urls().HOME.format(table=info.table_db_name)
-                                + f"?field={foregin.name}&search={str(detail.data.get(foregin.foregin_key.field_name))}",
-                                target="_blank",
-                            ),
-                            class_name="btn btn-outline-success m-2",
-                        )
-                    )
+        for info, foregin in cls.find_references_table(tablename=table):
+            components.append(
+                c.Button(
+                    text=(
+                        info.table_title if info.table_title else info.table_class_name
+                    ),
+                    on_click=e.GoToEvent(
+                        url=FastAdminConfig.api_path_strip
+                        + cls._get_urls().HOME.format(table=info.table_db_name)
+                        + f"?field={foregin.name}&search={str(detail.data.get(foregin.foregin_key.field_name))}",
+                        target="_blank",
+                    ),
+                    class_name="btn btn-outline-success m-2",
+                )
+            )
 
         if len(components) > 1:
             body.extend(components)

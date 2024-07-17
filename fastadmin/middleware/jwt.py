@@ -362,9 +362,7 @@ class FastAdminJWT(AbsractJWTMiddleware):
 
             admin = FastAdminMeta._get_admin()
 
-            session = admin.get_session()
-
-            async with session() as session:
+            async with admin.get_session() as session:
                 data = await admin.get(
                     session=session,
                     where=admin.id == user_id,

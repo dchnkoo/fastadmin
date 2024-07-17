@@ -1,9 +1,4 @@
-from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import _typing as sa_t
 import sqlalchemy as sa
 
@@ -20,25 +15,6 @@ _DB = _t.TypeVar("_DB", bound="_AsyncDB")
 
 
 class _AsyncDB:
-    @staticmethod
-    def create_engine(url: str, **kw):
-        return create_async_engine(url=url, **kw)
-
-    @classmethod
-    def get_session(
-        cls: _t.Type[_DB],
-        engine: AsyncEngine,
-        expire_on_commit: bool = False,
-        info: _t.Optional[sa_t._InfoType] = None,
-        **kw,
-    ) -> async_sessionmaker[AsyncSession]:
-        return async_sessionmaker(
-            bind=engine,
-            class_=AsyncSession,
-            expire_on_commit=expire_on_commit,
-            info=info**kw,
-        )
-
     @staticmethod
     async def execute(
         session: AsyncSession, query: sa.Executable, commit: bool = False, **kwargs

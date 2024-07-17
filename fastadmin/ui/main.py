@@ -29,9 +29,7 @@ async def autheficate(
 ) -> list[c.AnyComponent]:
     admin = FastAdminMeta._get_admin()
 
-    session = admin.get_session()
-
-    async with session() as session:
+    async with admin.get_session() as session:
         return await admin.authefication(
             auth_credentials=auth, session=session, request=request
         )
@@ -81,9 +79,7 @@ async def exit(
 ):
     admin = FastAdminMeta._get_admin()
 
-    session = admin.get_session()
-
-    async with session() as session:
+    async with admin.get_session() as session:
         return await admin.exit(user=user, session=session, request=request)
 
 
@@ -112,9 +108,7 @@ async def home_page(
 ) -> list[c.AnyComponent]:
     admin_model: p.BaseModel = model._trash
 
-    session = model.get_session()
-
-    async with session() as session:
+    async with model.get_session() as session:
         return await model.home(
             pydantic_model=admin_model,
             metainfo=metainfo,
@@ -146,11 +140,9 @@ async def details_page(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ) -> list[c.AnyComponent]:
-    session = model.get_session()
-
     pydantic_model = model._admin
 
-    async with session() as session:
+    async with model.get_session() as session:
         return await model.details(
             session=session,
             pydantic_model=pydantic_model,
@@ -177,13 +169,11 @@ async def search_response(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ):
-    session = model.get_session()
-
     from_table = FastAdminMeta.__get_metainfo__(from_table)
 
     q = None if q == "" else q
 
-    async with session() as session:
+    async with model.get_session() as session:
         return await model.selected_search_response(
             session=session,
             foregin_table=metainfo,
@@ -240,11 +230,9 @@ async def edit_form_page(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ) -> list[c.AnyComponent]:
-    session = model.get_session()
-
     pydantic_model = model._edit_form
 
-    async with session() as session:
+    async with model.get_session() as session:
         return await model.edit_form_page(
             session=session,
             pydantic_model=pydantic_model,
@@ -275,9 +263,7 @@ async def edit_data(
     async for item in form:
         data = item.model_dump()
 
-        session = model.get_session()
-
-        async with session() as session:
+        async with model.get_session() as session:
             try:
                 await model.before_saving(
                     session=session,
@@ -347,11 +333,9 @@ async def form_page(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ) -> list[c.AnyComponent]:
-    session = model.get_session()
-
     pydantic_model = model._form
 
-    async with session() as session:
+    async with model.get_session() as session:
         return await model.form_page(
             session=session,
             pydantic_model=pydantic_model,
@@ -378,9 +362,7 @@ async def add_data(
     async for item in form:
         data = item.model_dump()
 
-        session = model.get_session()
-
-        async with session() as session:
+        async with model.get_session() as session:
             try:
                 await model.before_saving(
                     session=session,
@@ -426,11 +408,9 @@ async def delete_item(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ):
-    session = model.get_session()
-
     meta_field = metainfo.columns.get(field)
 
-    async with session() as session:
+    async with model.get_session() as session:
         where = getattr(model, meta_field.name) == meta_field.python_type(value)
 
         data = (
@@ -482,9 +462,7 @@ async def delete_image(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ):
-    session = model.get_session()
-
-    async with session() as session:
+    async with model.get_session() as session:
         meta_field = metainfo.columns.get(field)
         where = getattr(model, meta_field.name) == meta_field.python_type(value)
 
@@ -527,9 +505,7 @@ async def get_file(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ):
-    session = model.get_session()
-
-    async with session() as session:
+    async with model.get_session() as session:
         return await model.image_page(
             request=request,
             session=session,
@@ -556,9 +532,7 @@ async def download_file(
         FastAdminConfig.admin_middleware.get_access_credentials
     ),
 ):
-    session = model.get_session()
-
-    async with session() as session:
+    async with model.get_session() as session:
         file, mediatype, filename = await model.download_file(
             session=session,
             table=table,
@@ -570,14 +544,14 @@ async def download_file(
             request=request,
         )
 
-        return fa.responses.StreamingResponse(
-            file,
-            media_type=mediatype,
-            headers={
-                "Content-Disposition": f"attachment; filename={filename}",
-                "Content-Length": str(len(file.getvalue())),
-            },
-        )
+    return fa.responses.StreamingResponse(
+        file,
+        media_type=mediatype,
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Length": str(len(file.getvalue())),
+        },
+    )
 
 
 @ui.get(urls.DOWNLOAD_PAGE, response_class=fa.responses.HTMLResponse)

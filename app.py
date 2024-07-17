@@ -194,7 +194,6 @@ words = AdminWords(
 )
 
 app = FastAdmin(
-    sql_db_uri="postgresql+asyncpg://test:test@localhost:5432/test",
     secret_token="sdihsbkfh",
     sqlalchemy_metadata=Base,
     admin_panel_words=words,

@@ -8,7 +8,7 @@ import pydantic as p
 import typing as _t
 
 if _t.TYPE_CHECKING:
-    from fastadmin.metadata import FastAdminMeta, MetaInfo
+    from fastadmin.metadata import FastAdminMeta, MetaInfo, TableColumn
     from fastadmin.middleware.jwt import AccessCredetinalsAdmin
     from sqlalchemy.ext.asyncio import AsyncSession
     from pydantic import BaseModel
@@ -19,6 +19,7 @@ T = _t.TypeVar("T")
 
 mediatype: _t.TypeAlias = str
 filename: _t.TypeAlias = str
+ForeginField: _t.TypeAlias = "TableColumn"
 
 
 class ModelActions(SQLModel2Pydantic):
@@ -39,11 +40,9 @@ class ModelActions(SQLModel2Pydantic):
             metainfo = cls.__get_metainfo__(table=table)
             model = metainfo.table
 
-            session = model.get_session()
-
             func: _t.Callable = getattr(model, func_name)
 
-            async with session() as session:
+            async with model.get_session() as session:
                 if (
                     await func(user=access, session=session, metainfo=metainfo)
                 ) is False:
@@ -292,3 +291,65 @@ class ModelActions(SQLModel2Pydantic):
         slug.append(cls.slugify(data[cls.slugify_field]).lower())
 
         data["slug"] = "-".join(slug)
+
+    @classmethod
+    def find_references_table(
+        cls: type["FastAdminMeta"], tablename: str
+    ) -> list[tuple["MetaInfo", ForeginField]]:
+        references = []
+
+        for info in cls.__meta_values__:
+            for foregin in info.foregin_columns.values():
+                if tablename == foregin.foregin_key.table_name:
+                    references.append((info, foregin))
+
+        return references
+
+    @classmethod
+    async def recurcive_slug_update(
+        cls: type["FastAdminMeta"],
+        session: "AsyncSession",
+        metainfo: "MetaInfo",
+        data: dict,
+        field: str,
+        value: str,
+    ):
+        old_data = data.copy()
+
+        await cls.generate_slug(session=session, metainfo=metainfo, data=data)
+
+        meta_field = metainfo.columns.get(field)
+
+        old_slug = old_data.get("slug", None)
+        slug = data.get("slug", None)
+
+        if (slug is not None and old_slug is not None) and slug != old_slug:
+            await cls.update(
+                session=session,
+                where=getattr(cls, meta_field.name) == meta_field.python_type(value),
+                slug=slug,
+            )
+
+        for foregin_meta, foregin in cls.find_references_table(metainfo.table_db_name):
+            table = foregin_meta.table
+            foregin_value = data.get(foregin.foregin_key.field_name)
+
+            foregin_data: list[dict] = (
+                await table.get(
+                    session=session,
+                    where=getattr(table, foregin.name)
+                    == foregin.python_type(foregin_value),
+                    to_dict=True,
+                )
+            ).data
+
+            primary_key = list(foregin_meta.primary_columns.values())[0]
+
+            for slugs in foregin_data:
+                await table.recurcive_slug_update(
+                    session=session,
+                    metainfo=foregin_meta,
+                    data=slugs,
+                    field=primary_key.name,
+                    value=slugs.get(primary_key.name),
+                )
