@@ -376,7 +376,10 @@ class FastAdminJWT(AbsractJWTMiddleware):
             response = await call_next(request)
 
             self.set_cookie_to_response(
-                resposne=response, cookie_name=self.access.name, cookie_value=token
+                resposne=response,
+                cookie_name=self.access.name,
+                cookie_value=token,
+                **(self.access.settings or {}),
             )
 
             return response
