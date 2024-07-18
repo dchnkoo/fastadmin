@@ -31,6 +31,7 @@ class Token(p.BaseModel):
     life: _SECONDS
     name: str
     algorithm: _t.Literal["HS256", "HS384", "HS512"]
+    settings: _t.Optional[CookieSettings] = None
 
 
 class AbsractJWTMiddleware(ABC, _StarletteHTTP):
@@ -127,7 +128,7 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
 
     @classmethod
     async def set_access_token_to_response(
-        cls, response: _fa.Response, playload: dict, **kw: CookieSettings
+        cls, response: _fa.Response, playload: dict
     ) -> None:
         credentials = cls.access_playload(**playload)
 
@@ -138,12 +139,12 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
             cookie_name=cls.access.name,
             cookie_value=access_token,
             expires=cls.get_expires_str(credentials.get("exp")),
-            **kw,
+            **(cls.access.settings or {}),
         )
 
     @classmethod
     async def set_refresh_token_to_response(
-        cls, response: _fa.Response, playload: dict, **kw: CookieSettings
+        cls, response: _fa.Response, playload: dict
     ) -> None:
         credentials = cls.refresh_playload(**playload)
 
@@ -154,20 +155,14 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
             cookie_name=cls.refresh.name,
             cookie_value=refresh_token,
             expires=cls.get_expires_str(credentials.get("exp")),
-            **kw,
+            **(cls.refresh.settings or {}),
         )
 
     @classmethod
-    async def set_cookies_to_reponse(
-        cls, response: _fa.Response, playload: dict, **kw: CookieSettings
-    ):
-        await cls.set_refresh_token_to_response(
-            response=response, playload=playload, **kw
-        )
+    async def set_cookies_to_reponse(cls, response: _fa.Response, playload: dict):
+        await cls.set_refresh_token_to_response(response=response, playload=playload)
 
-        await cls.set_access_token_to_response(
-            response=response, playload=playload, **kw
-        )
+        await cls.set_access_token_to_response(response=response, playload=playload)
 
     @classmethod
     async def get_access_credentials(cls, request: _fa.Request) -> dict:
@@ -247,27 +242,25 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
         response.delete_cookie(cookie_name, **kw)
 
     @classmethod
-    def delete_access_cookie_to_response(
-        cls, response: _fa.Response, **kw: CookieSettings
-    ) -> None:
+    def delete_access_cookie_to_response(cls, response: _fa.Response) -> None:
         cls.delete_cookie_to_response(
-            response=response, cookie_name=cls.access.name, **kw
+            response=response,
+            cookie_name=cls.access.name,
+            **(cls.access.settings or {}),
         )
 
     @classmethod
-    def delete_refresh_cookie_to_response(
-        cls, response: _fa.Response, **kw: CookieSettings
-    ) -> None:
+    def delete_refresh_cookie_to_response(cls, response: _fa.Response) -> None:
         cls.delete_cookie_to_response(
-            response=response, cookie_name=cls.refresh.name, **kw
+            response=response,
+            cookie_name=cls.refresh.name,
+            **(cls.refresh.settings or {}),
         )
 
     @classmethod
-    def delete_both_cookies_to_response(
-        cls, response: _fa.Response, **kw: CookieSettings
-    ) -> None:
-        cls.delete_access_cookie_to_response(response=response, **kw)
-        cls.delete_refresh_cookie_to_response(response=response, **kw)
+    def delete_both_cookies_to_response(cls, response: _fa.Response) -> None:
+        cls.delete_access_cookie_to_response(response=response)
+        cls.delete_refresh_cookie_to_response(response=response)
 
     @abstractmethod
     async def dispatch(
@@ -309,38 +302,38 @@ class FastAdminJWT(AbsractJWTMiddleware):
     async def get_access_credentials(
         cls, request: _fa.Request
     ) -> AccessCredetinalsAdmin:
-        data = await super().get_access_credentials(request)
+        data = await super(FastAdminJWT, cls).get_access_credentials(request)
 
         return AccessCredetinalsAdmin(**data)
 
     @classmethod
     async def get_refresh_credentials(cls, request: _fa.Request) -> user_id:
-        data = await super().get_refresh_credentials(request)
+        data = await super(FastAdminJWT, cls).get_refresh_credentials(request)
 
         return data.get("id")
 
     @classmethod
     async def set_access_token_to_response(
-        cls, response: _fa.Response, user: type["AdminUser"], **kw: CookieSettings
+        cls, response: _fa.Response, user: type["AdminUser"]
     ) -> None:
         playload = cls.get_access_playload(user=user)
 
-        await super().set_access_token_to_response(response, playload, **kw)
+        await super(FastAdminJWT, cls).set_access_token_to_response(response, playload)
 
     @classmethod
     async def set_refresh_token_to_response(
-        cls, response: _fa.Response, user: type["AdminUser"], **kw: CookieSettings
+        cls, response: _fa.Response, user: type["AdminUser"]
     ) -> None:
         playload = cls.get_refresh_playload(user=user)
 
-        await super().set_refresh_token_to_response(response, playload, **kw)
+        await super(FastAdminJWT, cls).set_refresh_token_to_response(response, playload)
 
     @classmethod
     async def set_cookies_to_reponse(
-        cls, response: _fa.Response, user: type["AdminUser"], **kw: CookieSettings
+        cls, response: _fa.Response, user: type["AdminUser"]
     ):
-        await cls.set_access_token_to_response(response, user, **kw)
-        await cls.set_refresh_token_to_response(response, user, **kw)
+        await cls.set_access_token_to_response(response, user)
+        await cls.set_refresh_token_to_response(response, user)
 
     async def dispatch(
         self,
