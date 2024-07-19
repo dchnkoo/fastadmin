@@ -240,7 +240,7 @@ class FastAdminMeta(
         user: _t.Optional[cls] = (
             await cls.get(
                 session=session,
-                where=cls.email == email,
+                where=(cls.email == email,),
                 all_=False,
                 count=True,
             )
@@ -249,6 +249,11 @@ class FastAdminMeta(
         if user is None:
             raise _fa.HTTPException(
                 status_code=_fa.status.HTTP_404_NOT_FOUND, detail="User doesn't exists."
+            )
+
+        if user.is_admin is False:
+            raise _fa.HTTPException(
+                status_code=_fa.status.HTTP_423_LOCKED, detail="You are not admin user!"
             )
 
         if check_password(password, user.password) is False:
