@@ -300,8 +300,31 @@ class FastAdminMeta(
 T = _t.TypeVar("T")
 
 
+class LabelOptions(p.BaseModel):
+    field_name: str
+    label_table: str
+
+    @property
+    def table(self):
+        return FastAdminMeta._get_table(self.label_table)
+
+    @property
+    def label_metainfo(self):
+        return FastAdminMeta.__get_metainfo__(self.label_table)
+
+    @property
+    def label_meta_field(self):
+        return self.label_metainfo.columns.get(self.field_name)
+
+    def get_reference_field(self, table: "MetaInfo"):
+        for meta, foregin in FastAdminMeta.find_references_table(self.label_table):
+            if meta.table_db_name == table.table_db_name:
+                return foregin
+
+
 class ForeginOptions(p.BaseModel):
     selected_foregin_field: _t.Optional[str] = None
+    label: _t.Optional[LabelOptions] = None
     column_type: T = str
 
     @p.field_validator("column_type", mode="before")
@@ -319,6 +342,18 @@ class ColumnOptions(p.BaseModel):
 class ForeginKey(p.BaseModel):
     table_name: str
     field_name: str
+
+    @property
+    def foregin_table(self):
+        return FastAdminMeta._get_table(self.table_name)
+
+    @property
+    def foregin_metainfo(self):
+        return FastAdminMeta.__get_metainfo__(self.table_name)
+
+    @property
+    def foregin_meta_column(self):
+        return self.foregin_metainfo.columns.get(self.field_name)
 
 
 class TableColumn(p.BaseModel):
@@ -346,3 +381,15 @@ class MetaInfo(p.BaseModel):
     columns: dict[str, TableColumn]
     permissions: _t.List[str] = []
     hide_in_link: bool
+
+    @property
+    def first_primary(self):
+        if self.primary_columns:
+            return list(self.primary_columns.values())[0]
+        return None
+
+    @property
+    def first_unique(self):
+        if self.unique_columns:
+            return list(self.unique_columns.values())[0]
+        return None

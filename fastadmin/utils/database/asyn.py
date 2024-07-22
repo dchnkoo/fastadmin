@@ -11,7 +11,7 @@ if _t.TYPE_CHECKING:
     from fastadmin.metadata import FastAdminMeta
 
 
-_DB = _t.TypeVar("_DB", bound="_AsyncDB")
+_DB = _t.TypeVar("_DB")
 
 
 class _AsyncDB:
@@ -303,9 +303,9 @@ class _AsyncDB:
 
 
 class Result(p.BaseModel):
-    data: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]]
+    data: _t.Optional[_t.Union[_DB, tuple[_DB]]]
     count: _t.Optional[_t.Union[int, tuple[int]]] = 0
     sum: _t.Optional[_t.Union[float, tuple[float]]] = 0
     avg: _t.Optional[_t.Union[float, tuple[float]]] = 0
-    min: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
-    max: _t.Optional[_t.Union[_t.Any, tuple[_t.Any]]] = None
+    min: _t.Optional[_t.Union[_DB, tuple[_DB]]] = None
+    max: _t.Optional[_t.Union[_DB, tuple[_DB]]] = None

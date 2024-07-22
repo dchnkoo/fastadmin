@@ -6,6 +6,7 @@ from fastadmin.conf import FastAdminConfig
 
 import starlette.datastructures as starlette
 
+import sqlalchemy as sa
 import pydantic as p
 import fastapi as _fa
 import copy
@@ -565,27 +566,75 @@ class FastAdminComponents(Files):
 
         meta_from_field = from_table.columns.get(from_table_field)
 
-        result = await search_func(
-            session=session,
-            metainfo=foregin_table,
-            field=meta_from_field.options.foregin.selected_foregin_field,
-            search=q,
-            ilike=True,
-        )
+        if (label_options := meta_from_field.options.foregin.label) is not None:
+            label_table = label_options.table
+            reference = label_options.get_reference_field(foregin_table)
 
-        [
-            options.append(
-                {
-                    "value": str(getattr(i, foregin_field)),
-                    "label": str(
-                        getattr(
-                            i, meta_from_field.options.foregin.selected_foregin_field
-                        )
+            for label_data in (await label_table.get(session=session)).data or []:
+                table = foregin_table.table
+
+                where = [
+                    getattr(table, reference.name)
+                    == reference.python_type(
+                        getattr(label_data, reference.foregin_key.field_name)
                     ),
-                }
+                ]
+
+                if q is not None:
+                    where.append(
+                        sa.cast(
+                            getattr(
+                                table,
+                                meta_from_field.options.foregin.selected_foregin_field,
+                            ),
+                            sa.String,
+                        ).ilike(f"%{"%".join(q.split())}%")
+                    )
+
+                options.append(
+                    {
+                        "label": str(getattr(label_data, label_options.field_name)),
+                        "options": [
+                            {
+                                "value": str(getattr(item, foregin_field)),
+                                "label": str(
+                                    getattr(
+                                        item,
+                                        meta_from_field.options.foregin.selected_foregin_field,
+                                    )
+                                ),
+                            }
+                            for item in (
+                                (
+                                    await table.get(session=session, where=tuple(where))
+                                ).data
+                            )
+                        ],
+                    }
+                )
+        else:
+            result = await search_func(
+                session=session,
+                metainfo=foregin_table,
+                field=meta_from_field.options.foregin.selected_foregin_field,
+                search=q,
+                ilike=True,
             )
-            for i in result.data
-        ]
+
+            [
+                options.append(
+                    {
+                        "value": str(getattr(i, foregin_field)),
+                        "label": str(
+                            getattr(
+                                i,
+                                meta_from_field.options.foregin.selected_foregin_field,
+                            )
+                        ),
+                    }
+                )
+                for i in result.data
+            ]
 
         return forms.SelectSearchResponse(options=options)
 
