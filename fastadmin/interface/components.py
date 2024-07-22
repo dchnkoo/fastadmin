@@ -66,13 +66,19 @@ class Files:
 
     @classmethod
     def find_files_in_data(
-        cls, data: dict[str, T | starlette.UploadFile | list[starlette.UploadFile]]
+        cls,
+        data: _t.Optional[
+            dict[str, T | starlette.UploadFile | list[starlette.UploadFile]]
+        ],
     ) -> list[field]:
         keys = []
 
         check_right_file_type: _t.Callable[[starlette.UploadFile]] = lambda file: (  # noqa E731
             content_type := file.content_type
         ).startswith("image") or content_type.startswith("video")
+
+        if data is None:
+            return []
 
         for key, value in list(data.items()):
             if isinstance((file := value), starlette.UploadFile) and (
