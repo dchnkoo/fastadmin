@@ -288,7 +288,11 @@ class _AsyncDB:
 
     @classmethod
     def to_json(cls, data: _t.Type[_DB]) -> dict:
-        return data._asdict() if hasattr(data, "_asdict") else cls._dump_json(data)
+        return (
+            (data._asdict() if hasattr(data, "_asdict") else cls._dump_json(data))
+            if data is not None
+            else data
+        )
 
     @staticmethod
     def _dump_json(table: _t.Type[_DB]) -> dict:
