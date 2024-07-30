@@ -27,12 +27,45 @@ Cookies: _t.TypeAlias = dict[str, str]
 ActionsKwargs: _t.TypeAlias = dict[str, _t.Any]
 
 
-class Token(p.BaseModel):
+class Token(ABC, p.BaseModel):
     life: _SECONDS
     name: str
     algorithm: _t.Literal["HS256", "HS384", "HS512"]
     settings: _t.Optional[CookieSettings] = None
 
+    @property
+    def expires_date(self):
+        return _date.datetime.now(_date.timezone.utc) + _date.timedelta(seconds=self.life)
+
+    @property
+    def expires_date_str(self):
+        return self.expires_date.strftime("%a, %d-%b-%Y %T GMT")
+
+    def generate_playload(self, data: dict) -> dict:
+        return data | {"exp": self.expires_date}
+
+    async def get_secret() -> str:
+        secret = _config.secret_token
+
+        if callable(secret):
+            return await secret()
+
+        return secret
+    
+    async def get_token(self, **playload) -> str:
+        secret = await self.get_secret()
+
+        token = _jwt.encode(playload, secret, self.algorithm)
+
+        return token
+    
+    def set_cookie_to_response(self, response: _fa.Response, value: str):
+        response.set_cookie(
+            key=self.name,
+            value=value, 
+            expires=self.expires_date_str,
+            **(self.settings or {})
+        )
 
 class AbsractJWTMiddleware(ABC, _StarletteHTTP):
     access = Token(
@@ -101,20 +134,12 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
         return data
 
     @classmethod
-    def get_expires_str(cls, value: _date.datetime) -> DateTimeStr:
-        return value.strftime("%a, %d-%b-%Y %T GMT")
-
-    @staticmethod
-    def get_expires_date(value: _SECONDS) -> _date.datetime:
-        return _date.datetime.now(_date.timezone.utc) + _date.timedelta(seconds=value)
-
-    @classmethod
     def access_playload(cls, **playload) -> dict:
-        return playload | {"exp": cls.get_expires_date(cls.access.life)}
+        return playload | {"exp": cls.access.expires_date}
 
     @classmethod
     def refresh_playload(cls, **playload) -> dict:
-        return playload | {"exp": cls.get_expires_date(cls.refresh.life)}
+        return playload | {"exp": cls.refresh.expires_date}
 
     @classmethod
     def set_cookie_to_response(
@@ -138,7 +163,7 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
             resposne=response,
             cookie_name=cls.access.name,
             cookie_value=access_token,
-            expires=cls.get_expires_str(credentials.get("exp")),
+            expires=cls.access.expires_date_str,
             **(cls.access.settings or {}),
         )
 
@@ -154,7 +179,7 @@ class AbsractJWTMiddleware(ABC, _StarletteHTTP):
             resposne=response,
             cookie_name=cls.refresh.name,
             cookie_value=refresh_token,
-            expires=cls.get_expires_str(credentials.get("exp")),
+            expires=cls.refresh.expires_date_str,
             **(cls.refresh.settings or {}),
         )
 
@@ -379,6 +404,7 @@ class FastAdminJWT(AbsractJWTMiddleware):
                 resposne=response,
                 cookie_name=self.access.name,
                 cookie_value=token,
+                expires=self.access.expires_date_str,
                 **(self.access.settings or {}),
             )
 
