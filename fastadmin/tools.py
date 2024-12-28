@@ -4,7 +4,16 @@ import pydantic as _p
 
 import pydantic_core as _pc
 
-from sqlalchemy.sql.base import ReadOnlyColumnCollection
+from sqlalchemy.sql.base import (
+    ReadOnlyColumnCollection,
+    DedupeColumnCollection,
+)
+from sqlalchemy.sql.schema import (
+    _ServerDefaultArgument,
+    _ServerOnUpdateArgument,
+    SchemaConst,
+)
+from sqlalchemy.sql import sqltypes
 import sqlalchemy as _sa
 
 import typing as _t
@@ -16,8 +25,9 @@ class FastAdminTable(_sa.Table):
 
     if _t.TYPE_CHECKING:
         __table_name__: str
-        __table_info__: "TableInfo[_t.table]" | None
+        __table_info__: "TableInfo" | None
         __pydantic_model__: type[_p.BaseModel] | None
+        _columns: DedupeColumnCollection["FastColumn[_t.Any]"]
 
     @classmethod
     def _new(cls, *args, **kwds):
@@ -40,7 +50,7 @@ class FastAdminTable(_sa.Table):
         return table
     
     @property
-    def columns(self) -> ReadOnlyColumnCollection[str, "FastAdminColumn[_t.Any]"]:
+    def columns(self) -> ReadOnlyColumnCollection[str, "FastColumn[_t.Any]"]:
         return super(FastAdminTable, self).columns
     
     def as_pydantic_model(
@@ -56,7 +66,7 @@ class FastAdminTable(_sa.Table):
             return self.__pydantic_model__
 
         define_columns = {
-            column.name: (column.type.python_type, column.as_pydanitc_field()) 
+            column.name: (column.type.python_type, column.as_pydantic_field()) 
             for column in self.columns
         }
         model = _p.create_model(
@@ -75,11 +85,11 @@ class FastAdminTable(_sa.Table):
         return model
 
     @staticmethod
-    def _proccess_columns(*args: _sa.Column) -> list["FastAdminColumn"]:
+    def _proccess_columns(*args: _sa.Column) -> list["FastColumn"]:
         handled = []
         for column in args:
-            if not isinstance(column, FastAdminColumn):
-                column = FastAdminColumn(
+            if not isinstance(column, FastColumn):
+                column = FastColumn(
                     column.name,
                     column.type,
                     *column.constraints,
@@ -105,7 +115,7 @@ class FastAdminTable(_sa.Table):
             handled.append(column)
         return handled
 
-    def __fastadmin_metadata__(self) -> "TableInfo[_t.Self]":
+    def __fastadmin_metadata__(self) -> "TableInfo":
         if self.__table_info__ is not None:
             return self.__table_info__
         
@@ -126,10 +136,7 @@ class FastAdminTable(_sa.Table):
         return info
 
 
-_T = _t.TypeVar("_T")
-
-
-class FastAdminColumn(_sa.Column):
+class FastColumn[_T](_sa.Column):
 
     def __init__(
         self, 
@@ -192,7 +199,7 @@ class FastAdminColumn(_sa.Column):
         _proxies = None, 
         **dialect_kwargs
     ):
-        super(FastAdminColumn, self).__init__(
+        super(FastColumn, self).__init__(
             __name_pos, 
             __type_pos, 
             *args,
@@ -218,7 +225,7 @@ class FastAdminColumn(_sa.Column):
             _proxies=_proxies, 
             **dialect_kwargs
         )
-        self.defaul_factory = default_factory
+        self.default_factory = default_factory
         self.alias = alias
         self.alias_priority = alias_priority
         self.validation_alias = validation_alias
@@ -253,16 +260,10 @@ class FastAdminColumn(_sa.Column):
         self.fail_fast = fail_fast
         self.pydantic_extra = pydantic_extra or {}
 
-    def as_pydanitc_field(self):
-        default = (
-            self.default.arg 
-            if self.default is not None 
-            else _pc.PydanticUndefined
-        )
-        
+    def as_pydantic_field(self):
         return _p.Field(
-            default=default,
-            default_factory=self.defaul_factory,
+            default=self._handle_default(),
+            default_factory=self.default_factory,
             alias=self.alias,
             alias_priority=self.alias_priority,
             validation_alias=self.validation_alias,
@@ -297,8 +298,118 @@ class FastAdminColumn(_sa.Column):
             union_mode=self.union_mode,
             **self.pydantic_extra,
         )
+    
+    def _handle_default(self):
+        if self.default is not None:
+            if hasattr(self.default, "arg"):
+                return self.default.arg
+            return self.default
+        return _pc.PydanticUndefined
 
 
+from sqlalchemy.orm.interfaces import _AttributeOptions
+from sqlalchemy.orm import MappedColumn
+
+
+class FastMappedColumn[_T](MappedColumn):
+
+    def __init__(self,
+        *args,
+        default: _t.Optional[_t.Any] = _sa.sql.base._NoArg.NO_ARG,
+        default_factory: _t.Union[_sa.sql.base._NoArg, _t.Callable[[], _T]] = _sa.sql.base._NoArg.NO_ARG,
+        alias: str | None = _pf._Unset,
+        validation_alias: str | _pf.AliasPath | _pf.AliasChoices | None = _pf._Unset,
+        alias_priority: int | None = None,
+        serialization_alias: str | None = _pf._Unset,
+        title: str | None = _pf._Unset,
+        doc: _t.Optional[str] = None,
+        field_title_generator: _t.Callable[[str, _pf.FieldInfo], str] | None = _pf._Unset,
+        examples: list[_t.Any] | None = _pf._Unset,
+        exclude: bool | None = _pf._Unset,
+        discriminator: str | _p.types.Discriminator | None = _pf._Unset,
+        deprecated: _pf.Deprecated | str | bool | None = _pf._Unset,
+        json_schema_extra: _pf.JsonDict | _t.Callable[[_pf.JsonDict], None] | None = _pf._Unset,
+        frozen: bool | None = _pf._Unset,
+        validate_default: bool | None = _pf._Unset,
+        repr: bool = _pf._Unset,
+        init: bool | None = _pf._Unset,
+        init_var: bool | None = _pf._Unset,
+        kw_only: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,
+        hash: _t.Union[_sa.sql.base._NoArg, bool, None] = _sa.sql.base._NoArg.NO_ARG,
+        pattern: str | _pf.typing.Pattern[str] | None = _pf._Unset,
+        strict: bool | None = _pf._Unset,
+        coerce_numbers_to_str: bool | None = _pf._Unset,
+        compare: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,
+        gt: _pf.annotated_types.SupportsGt | None = _pf._Unset,
+        ge: _pf.annotated_types.SupportsGe | None = _pf._Unset,
+        lt: _pf.annotated_types.SupportsLt | None = _pf._Unset,
+        le: _pf.annotated_types.SupportsLe | None = _pf._Unset,
+        multiple_of: float | None = _pf._Unset,
+        allow_inf_nan: bool | None = _pf._Unset,
+        max_digits: int | None = _pf._Unset,
+        decimal_places: int | None = _pf._Unset,
+        min_length: int | None = _pf._Unset,
+        max_length: int | None = _pf._Unset,
+        union_mode: _t.Literal['smart', 'left_to_right'] = _pf._Unset,
+        fail_fast: bool | None = _pf._Unset,
+        pydantic_extra: dict | None = None,
+        **kw,
+    ):
+        super(FastMappedColumn, self).__init__(
+            *args,
+            attribute_options=_AttributeOptions(
+                init, repr, default, default_factory, compare, kw_only, hash
+            ),
+            **kw,
+        )
+        self.column = FastAdminTable._proccess_columns(self.column)[0]
+
+        self.column.default = (
+            default
+            if default != _sa.sql.base._NoArg.NO_ARG 
+            else None
+        )
+        self.column.default_factory = (
+            default_factory 
+            if default_factory != _sa.sql.base._NoArg.NO_ARG 
+            else _pf._Unset
+        )
+        self.column.alias = alias
+        self.column.alias_priority = alias_priority
+        self.column.validation_alias = validation_alias
+        self.column.serialization_alias = serialization_alias
+        self.column.title = title
+        self.column.field_title_generator = field_title_generator
+        self.column.examples = examples
+        self.column.exclude = exclude
+        self.column.discriminator = discriminator
+        self.column.deprecated = deprecated
+        self.column.json_schema_extra = json_schema_extra
+        self.column.frozen = frozen
+        self.column.validate_default = validate_default
+        self.column.repr = repr if isinstance(repr, bool) else _pf._Unset
+        self.column.init = init if isinstance(init, bool) else _pf._Unset
+        self.column.init_var = init_var
+        self.column.kw_only = kw_only if isinstance(kw_only, bool) else _pf._Unset
+        self.column.pattern = pattern
+        self.column.strict = strict
+        self.column.coerce_numbers_to_str = coerce_numbers_to_str
+        self.column.gt = gt
+        self.column.ge = ge
+        self.column.lt = lt
+        self.column.le = le
+        self.column.multiple_of = multiple_of
+        self.column.allow_inf_nan = allow_inf_nan
+        self.column.max_digits = max_digits
+        self.column.decimal_places = decimal_places
+        self.column.min_length = min_length
+        self.column.max_length = max_length
+        self.column.union_mode = union_mode
+        self.column.fail_fast = fail_fast
+        self.column.pydantic_extra = pydantic_extra or {}
+        self.column.doc = doc
+
+        
 @dataclasses.dataclass(
     kw_only=True, 
     slots=True, 
@@ -308,8 +419,220 @@ class FastAdminColumn(_sa.Column):
 class TableInfo:
     table: FastAdminTable
     table_name: str
-    primary_columns: dict[str, FastAdminColumn] = dataclasses.Field(default_factory=dict)
-    default_columns: dict[str, FastAdminColumn] = dataclasses.Field(default_factory=dict)
-    unique_columns: dict[str, FastAdminColumn] = dataclasses.Field(default_factory=dict)
-    index_columns: dict[str, FastAdminColumn] = dataclasses.Field(default_factory=dict)
-    nullable_columns: dict[str, FastAdminColumn] = dataclasses.Field(default_factory=dict)
+    primary_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
+    default_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
+    unique_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
+    index_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
+    nullable_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
+
+
+def fastadmin_mapped_column[_T](
+    __name_pos: _t.Optional[
+        _t.Union[str, sqltypes.TypeEngine[_T], _sa.sql.base.SchemaEventTarget]
+    ] = None,
+    __type_pos: _t.Optional[
+        _t.Union[sqltypes.TypeEngine[_T], _sa.sql.base.SchemaEventTarget]
+    ] = None,
+    *args: _sa.sql.base.SchemaEventTarget,
+    init: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,
+    repr: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,  # noqa: A002
+    default: _t.Optional[_t.Any] = _sa.sql.base._NoArg.NO_ARG,
+    default_factory: _t.Union[_sa.sql.base._NoArg, _t.Callable[[], _T]] = _sa.sql.base._NoArg.NO_ARG,
+    compare: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,
+    kw_only: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,
+    hash: _t.Union[_sa.sql.base._NoArg, bool, None] = _sa.sql.base._NoArg.NO_ARG,  # noqa: A002
+    nullable: _t.Optional[
+        _t.Union[bool, _t.Literal[SchemaConst.NULL_UNSPECIFIED]]
+    ] = SchemaConst.NULL_UNSPECIFIED,
+    primary_key: _t.Optional[bool] = False,
+    deferred: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,
+    deferred_group: _t.Optional[str] = None,
+    deferred_raiseload: _t.Optional[bool] = None,
+    use_existing_column: bool = False,
+    name: _t.Optional[str] = None,
+    type_: _t.Optional[sqltypes.TypeEngine[_T]] = None,
+    autoincrement: _sa.sql._typing._AutoIncrementType = "auto",
+    doc: _t.Optional[str] = None,
+    key: _t.Optional[str] = None,
+    index: _t.Optional[bool] = None,
+    unique: _t.Optional[bool] = None,
+    info: _t.Optional[_sa.sql._typing._InfoType] = None,
+    onupdate: _t.Optional[_t.Any] = None,
+    insert_default: _t.Optional[_t.Any] = _sa.sql.base._NoArg.NO_ARG,
+    server_default: _t.Optional[_ServerDefaultArgument] = None,
+    server_onupdate: _t.Optional[_ServerOnUpdateArgument] = None,
+    active_history: bool = False,
+    quote: _t.Optional[bool] = None,
+    system: bool = False,
+    comment: _t.Optional[str] = None,
+    sort_order: _t.Union[_sa.sql.base._NoArg, int] = _sa.sql.base._NoArg.NO_ARG,
+    alias: str | None = _pf._Unset,
+    validation_alias: str | _pf.AliasPath | _pf.AliasChoices | None = _pf._Unset,
+    alias_priority: int | None = None,
+    serialization_alias: str | None = _pf._Unset,
+    title: str | None = _pf._Unset,
+    field_title_generator: _t.Callable[[str, _pf.FieldInfo], str] | None = _pf._Unset,
+    examples: list[_t.Any] | None = _pf._Unset,
+    exclude: bool | None = _pf._Unset,
+    discriminator: str | _p.types.Discriminator | None = _pf._Unset,
+    deprecated: _pf.Deprecated | str | bool | None = _pf._Unset,
+    json_schema_extra: _pf.JsonDict | _t.Callable[[_pf.JsonDict], None] | None = _pf._Unset,
+    frozen: bool | None = _pf._Unset,
+    validate_default: bool | None = _pf._Unset,
+    init_var: bool | None = _pf._Unset,
+    pattern: str | _pf.typing.Pattern[str] | None = _pf._Unset,
+    strict: bool | None = _pf._Unset,
+    coerce_numbers_to_str: bool | None = _pf._Unset,
+    gt: _pf.annotated_types.SupportsGt | None = _pf._Unset,
+    ge: _pf.annotated_types.SupportsGe | None = _pf._Unset,
+    lt: _pf.annotated_types.SupportsLt | None = _pf._Unset,
+    le: _pf.annotated_types.SupportsLe | None = _pf._Unset,
+    multiple_of: float | None = _pf._Unset,
+    allow_inf_nan: bool | None = _pf._Unset,
+    max_digits: int | None = _pf._Unset,
+    decimal_places: int | None = _pf._Unset,
+    min_length: int | None = _pf._Unset,
+    max_length: int | None = _pf._Unset,
+    union_mode: _t.Literal['smart', 'left_to_right'] = _pf._Unset,
+    fail_fast: bool | None = _pf._Unset,
+    pydantic_extra: dict | None = None,
+    **kw: _t.Any,
+):
+    return FastMappedColumn(
+        __name_pos,
+        __type_pos,
+        *args,
+        init=init,
+        repr=repr,
+        default=default,
+        default_factory=default_factory,
+        compare=compare,
+        kw_only=kw_only,
+        hash=hash,
+        nullable=nullable,
+        primary_key=primary_key,
+        deferred=deferred,
+        deferred_group=deferred_group,
+        deferred_raiseload=deferred_raiseload,
+        use_existing_column=use_existing_column,
+        name=name,
+        type_=type_,
+        autoincrement=autoincrement,
+        doc=doc,
+        key=key,
+        index=index,
+        unique=unique,
+        info=info,
+        onupdate=onupdate,
+        insert_default=insert_default,
+        server_default=server_default,
+        server_onupdate=server_onupdate,
+        active_history=active_history,
+        quote=quote,
+        system=system,
+        comment=comment,
+        sort_order=sort_order,
+        alias=alias,
+        validation_alias=validation_alias,
+        alias_priority=alias_priority,
+        serialization_alias=serialization_alias,
+        title=title,
+        field_title_generator=field_title_generator,
+        examples=examples,
+        exclude=exclude,
+        discriminator=discriminator,
+        deprecated=deprecated,
+        json_schema_extra=json_schema_extra,
+        frozen=frozen,
+        validate_default=validate_default,
+        init_var=init_var,
+        pattern=pattern,
+        strict=strict,
+        coerce_numbers_to_str=coerce_numbers_to_str,
+        gt=gt,
+        ge=ge,
+        lt=lt,
+        le=le,
+        multiple_of=multiple_of,
+        allow_inf_nan=allow_inf_nan,
+        max_digits=max_digits,
+        decimal_places=decimal_places,
+        min_length=min_length,
+        max_length=max_length,
+        union_mode=union_mode,
+        fail_fast=fail_fast,
+        pydantic_extra=pydantic_extra,
+        **kw
+    )
+
+
+from sqlalchemy.orm import (
+    DeclarativeBase as _declarative,
+    declared_attr,
+)
+
+
+class FastAdminBase(_declarative):
+    if _t.TYPE_CHECKING:
+        __table__: FastAdminTable
+
+    @declared_attr.directive
+    def __table_cls__(cls) -> type[FastAdminTable]:
+        return FastAdminTable
+
+    @classmethod
+    def as_pydantic_model(
+        cls,
+        config: _p.ConfigDict | None = None,
+        doc: str | None = None,
+        base: None = None,
+        module: str = __name__,
+        validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
+        cls_kwargs: dict[str, _t.Any] | None = None
+    ) -> type[_t.Self]:
+        return cls.__table__.as_pydantic_model(
+            config=config,
+            doc=doc,
+            base=base,
+            module=module,
+            validators=validators,
+            cls_kwargs=cls_kwargs,
+        )
+    
+    @classmethod
+    def table_info(cls):
+        return cls.__table__.__fastadmin_metadata__()
+
+
+if __name__ == "__main__":
+    from sqlalchemy.orm import Mapped, MappedAsDataclass
+
+
+    class User(MappedAsDataclass, FastAdminBase):
+        __tablename__ = "users"
+
+        id: Mapped[int] = fastadmin_mapped_column(primary_key=True, default_factory=lambda: 213)
+        name: Mapped[str] = fastadmin_mapped_column(default="Anonim")
+
+
+    class Guest(FastAdminBase):
+        __tablename__ = "guest"
+
+        id = FastColumn(_sa.BigInteger, primary_key=True, default_factory=lambda: 1431431)
+        name = FastColumn(_sa.String, default="BaseGuest")
+
+
+    address = FastAdminTable(
+        "addresses",
+        FastAdminBase.metadata,
+        _sa.Column("id", _sa.Integer, primary_key=True, default=2),
+        _sa.Column("name", _sa.String, default="Address wasn't specified")
+    )
+
+    user_model = User.as_pydantic_model()
+    guest_model = Guest.as_pydantic_model()
+    address_model = address.as_pydantic_model()
+
+    print(guest_model())
+    print(user_model())
+    print(address_model())
