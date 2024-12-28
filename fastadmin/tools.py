@@ -122,16 +122,21 @@ class FastAdminTable(_sa.Table):
         info = TableInfo(table=self, table_name=self.__table_name__)
         for column in self.columns:
             pre_added = {column.name: column}
-            if column.primary_key:
+            if column.primary_key is True:
                 info.primary_columns.update(pre_added)
-            if column.default:
+            if (
+                column.default is not None
+                or column.default_factory != _pc.PydanticUndefined
+            ):
                 info.default_columns.update(pre_added)
-            if column.unique:
+            if column.unique is True:
                 info.unique_columns.update(pre_added)
-            if column.index:
+            if column.index is True:
                 info.index_columns.update(pre_added)
-            if column.nullable:
+            if column.nullable is True:
                 info.nullable_columns.update(pre_added)
+            if len(column.foreign_keys) > 0:
+                info.foregin_colummns.update(pre_added)
         self.__table_info__ = info
         return info
 
@@ -300,7 +305,7 @@ class FastColumn[_T](_sa.Column):
         )
     
     def _handle_default(self):
-        if self.default is not None:
+        if self.default != _sa.sql.base._NoArg.NO_ARG and self.default is not None:
             if hasattr(self.default, "arg"):
                 return self.default.arg
             return self.default
@@ -364,11 +369,7 @@ class FastMappedColumn[_T](MappedColumn):
         )
         self.column = FastAdminTable._proccess_columns(self.column)[0]
 
-        self.column.default = (
-            default
-            if default != _sa.sql.base._NoArg.NO_ARG 
-            else None
-        )
+        self.column.default = default
         self.column.default_factory = (
             default_factory 
             if default_factory != _sa.sql.base._NoArg.NO_ARG 
@@ -424,6 +425,7 @@ class TableInfo:
     unique_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
     index_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
     nullable_columns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
+    foregin_colummns: dict[str, FastColumn] = dataclasses.Field(default_factory=dict)
 
 
 def fastadmin_mapped_column[_T](
@@ -620,19 +622,19 @@ if __name__ == "__main__":
 
         id = FastColumn(_sa.BigInteger, primary_key=True, default_factory=lambda: 1431431)
         name = FastColumn(_sa.String, default="BaseGuest")
+        user_id = FastColumn(_sa.Integer, _sa.ForeignKey("users.id", ondelete="CASCADE"))
 
 
     address = FastAdminTable(
         "addresses",
         FastAdminBase.metadata,
         _sa.Column("id", _sa.Integer, primary_key=True, default=2),
-        _sa.Column("name", _sa.String, default="Address wasn't specified")
+        _sa.Column("name", _sa.String, default="Address wasn't specified"),
+        FastColumn("guest_id", _sa.BigInteger, _sa.ForeignKey("guest.id", ondelete="CASCADE"))
     )
 
-    user_model = User.as_pydantic_model()
-    guest_model = Guest.as_pydantic_model()
-    address_model = address.as_pydantic_model()
+    print(User.as_pydantic_model()())
+    print(Guest.as_pydantic_model()(user_id=23))
+    print(address.as_pydantic_model()(guest_id=34))
 
-    print(guest_model())
-    print(user_model())
-    print(address_model())
+    
