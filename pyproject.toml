@@ -10,6 +10,9 @@ python = "^3.12"
 sqlalchemy = "^2.0.36"
 pydantic = "^2.10.4"
 fastapi = {extras = ["all"], version = "^0.115.6"}
+fastui = "^0.7.0"
+pre-commit = "^4.0.1"
+pytest = "^8.3.4"
 
 
 [build-system]

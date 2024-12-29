@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: "v0.8.4"
+    hooks:
+      - id: ruff
+        args:
+          - fastadmin/
+          - --fix
+          - --exclude
+          - __init__.py
+          - --exclude
+          - tests
+      - id: ruff-format
+        args:
+          - fastadmin/
+          - --exclude
+          - __init__.py
+  - repo: local 
+    hooks: 
+      - id: pytest 
+        name: pytest 
+        entry: pytest --disable-warnings -s tests 
+        language: system 
+        types: [python] 
+        pass_filenames: false 
+        always_run: true
