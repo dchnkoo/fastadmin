@@ -57,17 +57,20 @@ class FastAdminTable(_sa.Table):
         self,
         config: _p.ConfigDict | None = None,
         doc: str | None = None,
-        base: None = None,
+        base: type[_p.BaseModel] | None = None,
         module: str = __name__,
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None, # type: ignore
         cls_kwargs: dict[str, _t.Any] | None = None,
+        exclude: list[str] = ...,
     ):
         if self.cache_pydantic_models and self.__pydantic_model__ is not None:
             return self.__pydantic_model__
 
+        exclude = [] if isinstance(exclude, list) is False else exclude
         define_columns = {
-            column.name: (column.type.python_type, column.as_pydantic_field()) 
+            name: (column.type.python_type, column.as_pydantic_field()) 
             for column in self.columns
+            if (name := column.name) not in exclude
         }
         model = _p.create_model(
             self.__table_name__,
@@ -587,11 +590,12 @@ class FastAdminBase(_declarative):
         cls,
         config: _p.ConfigDict | None = None,
         doc: str | None = None,
-        base: None = None,
+        base: type[_p.BaseModel] |  None = None,
         module: str = __name__,
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
-        cls_kwargs: dict[str, _t.Any] | None = None
-    ) -> type[_t.Self]:
+        cls_kwargs: dict[str, _t.Any] | None = None,
+        exclude: list[str] = ...,
+    ):
         return cls.__table__.as_pydantic_model(
             config=config,
             doc=doc,
@@ -599,6 +603,7 @@ class FastAdminBase(_declarative):
             module=module,
             validators=validators,
             cls_kwargs=cls_kwargs,
+            exclude=exclude,
         )
     
     @classmethod
@@ -632,9 +637,3 @@ if __name__ == "__main__":
         _sa.Column("name", _sa.String, default="Address wasn't specified"),
         FastColumn("guest_id", _sa.BigInteger, _sa.ForeignKey("guest.id", ondelete="CASCADE"))
     )
-
-    print(User.as_pydantic_model()())
-    print(Guest.as_pydantic_model()(user_id=23))
-    print(address.as_pydantic_model()(guest_id=34))
-
-    
