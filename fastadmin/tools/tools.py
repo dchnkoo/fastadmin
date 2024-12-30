@@ -152,7 +152,9 @@ class FastAdminTable(_sa.Table):  # type: ignore
         return info
 
 
-class FastColumn[_T](_sa.Column):  # type: ignore
+class FastColumn[_T](_sa.Column):
+    inherit_cache = True
+
     def __init__(
         self,
         __name_pos: _t.Optional[
@@ -203,7 +205,7 @@ class FastColumn[_T](_sa.Column):  # type: ignore
         name: str | None = None,
         type_: sqltypes.TypeEngine[_T] | None = None,
         autoincrement: str = "auto",
-        default: _t.Any | None = _sa.sql.base._NoArg.NO_ARG,
+        default: _t.Any | None = None,
         doc: str | None = None,
         key: str | None = None,
         index: bool | None = None,
@@ -365,18 +367,20 @@ class FastColumn[_T](_sa.Column):  # type: ignore
         )
 
     def _handle_default(self) -> _t.Any | _pc.PydanticUndefinedType:
-        if self.default != _sa.sql.base._NoArg.NO_ARG and self.default is not None:
+        if self.default is not None:
             if hasattr(self.default, "arg"):
                 return self.default.arg
             return self.default
         return _pc.PydanticUndefined
 
 
-class FastMappedColumn[_T](MappedColumn):  # type: ignore
+class FastMappedColumn[_T](MappedColumn):
+    inherit_cache = True
+
     def __init__(
         self,
         *args,
-        default: _t.Optional[_t.Any] = _sa.sql.base._NoArg.NO_ARG,
+        default: _t.Optional[_t.Any] = None,
         default_factory: _t.Union[
             _sa.sql.base._NoArg, _t.Callable[[], _T]
         ] = _sa.sql.base._NoArg.NO_ARG,
@@ -513,7 +517,7 @@ def fastadmin_mapped_column[_T](
     *args: _sa.sql.base.SchemaEventTarget,
     init: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,
     repr: _t.Union[_sa.sql.base._NoArg, bool] = _sa.sql.base._NoArg.NO_ARG,  # noqa: A002
-    default: _t.Optional[_t.Any] = _sa.sql.base._NoArg.NO_ARG,
+    default: _t.Optional[_t.Any] = None,
     default_factory: _t.Union[
         _sa.sql.base._NoArg, _t.Callable[[], _T]
     ] = _sa.sql.base._NoArg.NO_ARG,
