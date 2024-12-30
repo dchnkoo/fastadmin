@@ -42,7 +42,10 @@ Comment = FastAdminTable(
 
 @pytest.fixture
 def engine():
-    return _sa.create_engine("sqlite:///:memory:")
+    _engine = _sa.create_engine("sqlite:///:memory:")
+    with _engine.connect() as conn:
+        conn.execute(_sa.text("PRAGMA foreign_keys=ON"))
+    return _engine
 
 
 @pytest.fixture
@@ -50,6 +53,34 @@ def session(engine: _sa.Engine):
     FastAdminBase.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     return Session()
+
+
+@pytest.fixture
+def user(session: Session):
+    user = User(id=1, name="John Doe", age=30)
+    session.add(user)
+    session.commit()
+    return user
+
+
+@pytest.fixture
+def post(user: User, session: Session):
+    post = Post(
+        id=1, title="First Post", content="This is the first post", user_id=user.id
+    )
+    session.add(post)
+    session.commit()
+    return post
+
+
+@pytest.fixture
+def comment(post: Post, user: User, session: Session):
+    comment = Comment.insert().values(
+        id=1, content="Nice post!", post_id=post.id, user_id=user.id
+    )
+    session.execute(comment)
+    session.commit()
+    return comment
 
 
 def test_as_pydantic_model():
@@ -268,33 +299,39 @@ def test_sqlalchemy_table_custom_validators(session):
     assert user.name == "JOHN DOE"
 
 
-def test_create_post(session: Session):
-    post = Post(id=1, title="First Post", content="This is the first post", user_id=1)
+def test_create_post(session: Session, user: User):
+    post = Post(
+        id=1, title="First Post", content="This is the first post", user_id=user.id
+    )
     session.add(post)
     session.commit()
 
     assert post.id == 1
     assert post.title == "First Post"
     assert post.content == "This is the first post"
-    assert post.user_id == 1
+    assert post.user_id == user.id
 
 
-def test_create_comment(session: Session):
-    comment = Comment.insert().values(id=1, content="Nice post!", post_id=1, user_id=1)
+def test_create_comment(session: Session, user: User, post: Post):
+    comment = Comment.insert().values(
+        id=1, content="Nice post!", post_id=post.id, user_id=user.id
+    )
     session.execute(comment)
     session.commit()
 
     inserted_comment = session.query(Comment).filter_by(id=1).first()
     assert inserted_comment.id == 1
     assert inserted_comment.content == "Nice post!"
-    assert inserted_comment.post_id == 1
-    assert inserted_comment.user_id == 1
+    assert inserted_comment.post_id == post.id
+    assert inserted_comment.user_id == user.id
 
 
-def test_query_post(session: Session):
-    post1 = Post(id=1, title="First Post", content="This is the first post", user_id=1)
+def test_query_post(session: Session, user: User):
+    post1 = Post(
+        id=1, title="First Post", content="This is the first post", user_id=user.id
+    )
     post2 = Post(
-        id=2, title="Second Post", content="This is the second post", user_id=1
+        id=2, title="Second Post", content="This is the second post", user_id=user.id
     )
     session.add_all([post1, post2])
     session.commit()
@@ -305,10 +342,12 @@ def test_query_post(session: Session):
     assert post2 in posts
 
 
-def test_query_comment(session: Session):
-    comment1 = Comment.insert().values(id=1, content="Nice post!", post_id=1, user_id=1)
+def test_query_comment(session: Session, user: User, post: Post):
+    comment1 = Comment.insert().values(
+        id=1, content="Nice post!", post_id=post.id, user_id=user.id
+    )
     comment2 = Comment.insert().values(
-        id=2, content="Great post!", post_id=1, user_id=2
+        id=2, content="Great post!", post_id=post.id, user_id=user.id
     )
     session.execute(comment1)
     session.execute(comment2)
@@ -320,8 +359,10 @@ def test_query_comment(session: Session):
     assert comments[1].id == 2
 
 
-def test_update_post(session: Session):
-    post = Post(id=1, title="First Post", content="This is the first post", user_id=1)
+def test_update_post(session: Session, user: User):
+    post = Post(
+        id=1, title="First Post", content="This is the first post", user_id=user.id
+    )
     session.add(post)
     session.commit()
 
@@ -332,8 +373,10 @@ def test_update_post(session: Session):
     assert updated_post.title == "Updated Post"
 
 
-def test_update_comment(session: Session):
-    comment = Comment.insert().values(id=1, content="Nice post!", post_id=1, user_id=1)
+def test_update_comment(session: Session, user: User, post: Post):
+    comment = Comment.insert().values(
+        id=1, content="Nice post!", post_id=post.id, user_id=user.id
+    )
     session.execute(comment)
     session.commit()
 
@@ -346,8 +389,10 @@ def test_update_comment(session: Session):
     assert updated_comment.content == "Updated comment"
 
 
-def test_delete_post(session: Session):
-    post = Post(id=1, title="First Post", content="This is the first post", user_id=1)
+def test_delete_post(session: Session, user: User):
+    post = Post(
+        id=1, title="First Post", content="This is the first post", user_id=user.id
+    )
     session.add(post)
     session.commit()
 
@@ -358,8 +403,10 @@ def test_delete_post(session: Session):
     assert deleted_post is None
 
 
-def test_delete_comment(session: Session):
-    comment = Comment.insert().values(id=1, content="Nice post!", post_id=1, user_id=1)
+def test_delete_comment(session: Session, user: User, post: Post):
+    comment = Comment.insert().values(
+        id=1, content="Nice post!", post_id=post.id, user_id=user.id
+    )
     session.execute(comment)
     session.commit()
 
@@ -438,3 +485,52 @@ def test_comment_as_pydantic_model():
     assert "content" in comment_model.model_fields
     assert "post_id" in comment_model.model_fields
     assert "user_id" in comment_model.model_fields
+
+
+def test_create_post_with_invalid_user_id(session: Session):
+    post = Post(id=1, title="First Post", content="This is the first post", user_id=999)
+    session.add(post)
+    with pytest.raises(_sa.exc.IntegrityError):
+        session.commit()
+
+
+def test_create_comment_with_invalid_post_id(session: Session, user: User):
+    comment = Comment.insert().values(
+        id=1, content="Nice post!", post_id=999, user_id=user.id
+    )
+    with pytest.raises(_sa.exc.IntegrityError):
+        session.execute(comment)
+
+
+def test_create_comment_with_invalid_user_id(session: Session, post: Post):
+    comment = Comment.insert().values(
+        id=1, content="Nice post!", post_id=post.id, user_id=999
+    )
+    with pytest.raises(_sa.exc.IntegrityError):
+        session.execute(comment)
+
+
+def test_query_post_with_user(session: Session, user: User):
+    post = Post(
+        id=1, title="First Post", content="This is the first post", user_id=user.id
+    )
+    session.add(user)
+    session.add(post)
+    session.commit()
+
+    queried_post = session.query(Post).filter_by(id=1).first()
+    assert queried_post.user_id == user.id
+
+
+def test_query_comment_with_post_and_user(session: Session, user: User, post: Post):
+    comment = Comment.insert().values(
+        id=1, content="Nice post!", post_id=post.id, user_id=user.id
+    )
+    session.add(user)
+    session.add(post)
+    session.execute(comment)
+    session.commit()
+
+    queried_comment = session.query(Comment).filter_by(id=1).first()
+    assert queried_comment.post_id == post.id
+    assert queried_comment.user_id == user.id
