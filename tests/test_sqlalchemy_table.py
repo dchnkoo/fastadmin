@@ -6,7 +6,7 @@ from fastadmin import (
     FastColumn,
 )
 
-from sqlalchemy.orm import Mapped, sessionmaker
+from sqlalchemy.orm import Mapped, sessionmaker, mapped_column
 import sqlalchemy as _sa
 
 import pydantic as _p
@@ -18,16 +18,16 @@ class User(FastAdminBase):
     id: Mapped[int] = fastadmin_mapped_column(
         _sa.Integer, primary_key=True, frozen=True
     )
-    name: Mapped[str] = fastadmin_mapped_column(_sa.String, nullable=False)
+    name: Mapped[str] = mapped_column(_sa.String, nullable=False)
     age: Mapped[int] = fastadmin_mapped_column(_sa.Integer, nullable=True)
 
 
 class Post(FastAdminBase):
     __tablename__ = "posts"
     id = FastColumn(_sa.Integer, primary_key=True)
-    title = FastColumn(_sa.String, nullable=False)
-    content = FastColumn(_sa.String, nullable=False)
-    user_id = FastColumn(_sa.Integer, _sa.ForeignKey("users.id"))
+    title = _sa.Column(_sa.String, nullable=False)
+    content = FastColumn(_sa.String, nullable=False, anotation=str)
+    user_id = _sa.Column(_sa.Integer, _sa.ForeignKey("users.id"))
 
 
 Comment = FastAdminTable(
@@ -36,7 +36,7 @@ Comment = FastAdminTable(
     FastColumn("id", _sa.Integer, primary_key=True),
     FastColumn("content", _sa.String, nullable=False),
     FastColumn("post_id", _sa.Integer, _sa.ForeignKey("posts.id")),
-    FastColumn("user_id", _sa.Integer, _sa.ForeignKey("users.id")),
+    _sa.Column("user_id", _sa.Integer, _sa.ForeignKey("users.id")),
 )
 
 

@@ -22,6 +22,8 @@ from sqlalchemy.sql.schema import (
 from sqlalchemy.sql import sqltypes
 import sqlalchemy as _sa
 
+from .components import BaseModelComponents
+
 import typing as _t
 
 
@@ -62,16 +64,24 @@ class FastAdminTable(_sa.Table):  # type: ignore
         self,
         config: _p.ConfigDict | None = None,
         doc: str | None = None,
-        base: type[_p.BaseModel] | None = None,
+        base: type[_p.BaseModel] | tuple[type[_p.BaseModel], ...] = BaseModelComponents,
         module: str = __name__,
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
         cls_kwargs: dict[str, _t.Any] | None = None,
         exclude: list[str] = ...,  # type: ignore
-    ) -> type[_p.BaseModel]:
+    ):
+        if base is None:
+            base = BaseModelComponents
+        if (base == BaseModelComponents) is False:
+            if isinstance(base, tuple):
+                base = base + (BaseModelComponents,)
+            else:
+                base = (base, BaseModelComponents)
+
         if self.cache_pydantic_models and self.__pydantic_model__ is not None:
             return self.__pydantic_model__
 
-        exclude = [] if isinstance(exclude, list) is False else exclude
+        exclude = [] if isinstance(exclude, (list, tuple, set)) is False else exclude
         define_columns = {
             name: (
                 column.anotation or column.type.python_type,
@@ -96,14 +106,21 @@ class FastAdminTable(_sa.Table):  # type: ignore
         return model
 
     @staticmethod
-    def _proccess_columns(*args: _sa.Column) -> list["FastColumn[_t.Any]"]:
+    def _clone_foregin_keys(foreign_keys: set[_sa.ForeignKey]):
+        return {fk._copy() for fk in foreign_keys}
+
+    @classmethod
+    def _proccess_columns(cls, *args: _sa.Column) -> list["FastColumn[_t.Any]"]:
         handled = []
         for column in args:
             if not isinstance(column, FastColumn):
                 column = FastColumn(
                     column.name,
                     column.type,
-                    *column.constraints,
+                    *(
+                        cls._clone_foregin_keys(column.foreign_keys)
+                        | column.constraints
+                    ),
                     autoincrement=column.autoincrement,
                     default=column.default,
                     doc=column.doc,
@@ -668,7 +685,7 @@ class FastAdminBase(_declarative):  # type: ignore
         module: str = __name__,
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
         cls_kwargs: dict[str, _t.Any] | None = None,
-        exclude: list[str] = ...,
+        exclude: _t.Iterable[str] = ...,
     ):
         return cls.__table__.as_pydantic_model(
             config=config,
