@@ -33,10 +33,10 @@ class TestPageWithMultipleInheritance(Page):
 
 
 def test_page_uri():
-    assert TestPage.page_uri() == "/test"
-    assert TestPageWithPrefix.page_uri() == "/prefix/test2"
-    assert TestPageWithParent.page_uri() == "/child"
-    assert TestPageWithParent.page_uri(include_parents=True) == "/test/child"
+    assert TestPage._page_uri() == "/test"
+    assert TestPageWithPrefix._page_uri() == "/prefix/test2"
+    assert TestPageWithParent._page_uri() == "/child"
+    assert TestPageWithParent._page_uri(include_parents=True) == "/test/child"
 
 
 def test_page_inheritance():
@@ -144,3 +144,17 @@ def test_page_invalid_render_return_type():
     assert f"Page `render` method must return one of {ALLOWED_RETURN_TYPES} " in str(
         exc_info.value
     )
+
+
+def test_page_invalid_api_method():
+    with pytest.raises(ValueError) as exc_info:
+
+        class InvalidApiMethod(Page):
+            uri = "/InvalidApiMethod"
+
+            method = "INVALID"
+
+            def render(self) -> str:
+                return ...
+
+    assert "Method must be one of" in str(exc_info.value)

@@ -7,7 +7,7 @@ from .tools import (
     TableInfo,
 )
 from .page import (
-    inheritance_tracker,
+    inheritance_page_tracker,
     Template,
     Page,
 )
