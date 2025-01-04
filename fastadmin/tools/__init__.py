@@ -6,3 +6,8 @@ from .tools import (
     FastColumn,
     TableInfo,
 )
+from .page import (
+    inheritance_tracker,
+    Template,
+    Page,
+)
