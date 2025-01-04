@@ -1,4 +1,5 @@
 import typing as _t
+import inspect
 
 if _t.TYPE_CHECKING:
     from starlette.templating import _TemplateResponse
@@ -6,6 +7,14 @@ if _t.TYPE_CHECKING:
 
 
 Template: _t.TypeAlias = "_TemplateResponse"
+
+
+ALLOWED_RETURN_TYPES = (
+    list["AnyComponent"],
+    "list[AnyComponent]",
+    Template,
+    str,
+)
 
 
 def inheritance_tracker[_T: "Page"](obj: _t.Type[_T]) -> _t.Type[_T]:
@@ -27,10 +36,40 @@ def inheritance_tracker[_T: "Page"](obj: _t.Type[_T]) -> _t.Type[_T]:
                 if base is not Wrapper and issubclass(base, Page):
                     if parent is not None:
                         raise ValueError(
-                            f"Multiple inheritance is not allowed ({cls.__name__})"
+                            f"Multiple inheritance with Page object is not allowed ({cls.__name__})"
                         )
                     parent = base
             return parent
+
+        @classmethod
+        def _validate_render_func(cls):
+            funcs = inspect.getmembers_static(cls, predicate=inspect.isfunction)
+            render_func = dict(funcs).get("render")
+
+            if render_func is None:
+                raise ValueError(f"Page must have a `render` method ({cls.__name__})")
+
+            splited_name = render_func.__qualname__.split(".")
+            index = splited_name.index("render")
+            object_name = splited_name[index - 1]
+
+            if object_name != cls.__name__:
+                raise ValueError(
+                    f"Page `render` method must be a method of the class ({cls.__name__})"
+                )
+
+            func_signature = inspect.signature(render_func)
+
+            return_annotation = func_signature.return_annotation
+            if return_annotation == func_signature.empty:
+                raise ValueError(
+                    f"Page `render` method must have a return annotation ({cls.__name__})"
+                )
+
+            if return_annotation not in ALLOWED_RETURN_TYPES:
+                raise ValueError(
+                    f"Page `render` method must return one of {ALLOWED_RETURN_TYPES} ({cls.__name__})"
+                )
 
         def __init_subclass__(cls, prefix: str = None):
             if prefix is not None:
@@ -50,6 +89,8 @@ def inheritance_tracker[_T: "Page"](obj: _t.Type[_T]) -> _t.Type[_T]:
             cls.__pages__[cls.uri] = cls
             parent = cls._check_multiple_inheritance()
             cls._parent = parent
+
+            cls._validate_render_func()
 
     return Wrapper
 
