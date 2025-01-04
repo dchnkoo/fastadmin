@@ -88,3 +88,12 @@ def test_fastadmin_app_routes(fastadmin_app: FastAdmin):
 
     assert "/test_prefix/test3" in pathes
     assert "/component" in pathes
+
+
+def test_fastadmin_prebuilt_route(fastadmin_app: FastAdmin):
+    client = TestClient(fastadmin_app)
+    response = client.get("/prebuilt")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+    assert response.text.startswith("<!doctype html>")
