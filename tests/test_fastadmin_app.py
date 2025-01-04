@@ -3,6 +3,7 @@ from fastadmin import FastAdmin, AnyComponent
 from fastadmin import Page
 
 from fastapi.testclient import TestClient
+from fastapi import Request
 
 import fastui.components as fc
 import sqlalchemy as sa
@@ -25,7 +26,8 @@ class TestPageWithComponent(Page):
     uri = "/component"
     method = "GET"
 
-    def render(self) -> list[AnyComponent]:
+    def render(self, request: Request) -> list[AnyComponent]:
+        assert isinstance(request, Request)
         return [fc.Page(components=[fc.Text(text="Hello World")])]
 
 
@@ -81,7 +83,7 @@ def test_fastadmin_invalid_metadata():
     assert str(exc_info.value) == "metadata.tables must be FastAdminTable instances"
 
 
-def test_fastadmin_routes(fastadmin_app: FastAdmin):
+def test_fastadmin_app_routes(fastadmin_app: FastAdmin):
     pathes = [route.path for route in fastadmin_app.routes[4].app.routes]
 
     assert "/test_prefix/test3" in pathes
