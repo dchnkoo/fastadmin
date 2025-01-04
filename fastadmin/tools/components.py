@@ -8,8 +8,14 @@ from fastui import (
 import pydantic as _p
 import typing as _t
 
+if _t.TYPE_CHECKING:
+    from .tools import FastAdminBase
+
 
 class BaseModelComponents(_p.BaseModel):
+    if _t.TYPE_CHECKING:
+        fast_model_config: _t.ClassVar[_t.Dict[str, _t.Any]]
+
     @classmethod
     def as_model_form(
         cls,
@@ -121,5 +127,37 @@ class BaseModelComponents(_p.BaseModel):
         return _c.Details(
             data=self,
             fields=fields,
+            class_name=class_name,
+        )
+
+    @classmethod
+    def as_model_table(
+        cls,
+        data: _t.Sequence[_t.Union["FastAdminBase", _t.Self, dict]],
+        columns: _t.List[_c.display.DisplayLookup] | None = None,
+        no_data_message: str | None = None,
+        class_name: _cs.ClassNameField | None = None,
+    ) -> _c.Table:
+        """
+        Use this method to create a Table component from a Pydantic model.
+        """
+        from .tools import FastAdminBase, FastAdminTable
+
+        to_table = []
+
+        for item in data:
+            if isinstance(item, dict):
+                to_table.append(cls(**item))
+            elif isinstance(item, (FastAdminBase, FastAdminTable)):
+                model = item.to_pydantic_model(**cls.fast_model_config)
+                to_table.append(model)
+            else:
+                to_table.append(item)
+
+        return _c.Table(
+            data=to_table,
+            data_model=cls,
+            columns=columns,
+            no_data_message=no_data_message,
             class_name=class_name,
         )

@@ -90,6 +90,7 @@ class FastAdminTable(_sa.Table):  # type: ignore
             for column in self.columns
             if (name := column.name) not in exclude
         }
+
         model = _p.create_model(
             self.__table_name__.title(),
             __config__=config,
@@ -100,6 +101,16 @@ class FastAdminTable(_sa.Table):  # type: ignore
             __cls_kwargs__=cls_kwargs,
             **define_columns,
         )
+
+        model.fast_model_config = {
+            "config": config,
+            "doc": doc,
+            "base": base,
+            "module": module,
+            "validators": validators,
+            "cls_kwargs": cls_kwargs,
+            "exclude": exclude,
+        }
 
         if self.cache_pydantic_models:
             self.__pydantic_model__ = model
@@ -696,6 +707,34 @@ class FastAdminBase(_declarative):  # type: ignore
             cls_kwargs=cls_kwargs,
             exclude=exclude,
         )
+
+    def to_pydantic_model(
+        self,
+        config: _p.ConfigDict | None = None,
+        doc: str | None = None,
+        base: type[_p.BaseModel] | None = None,
+        module: str = __name__,
+        validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
+        cls_kwargs: dict[str, _t.Any] | None = None,
+        exclude: _t.Iterable[str] = ...,
+    ):
+        model = self.__table__.as_pydantic_model(
+            config=config,
+            doc=doc,
+            base=base,
+            module=module,
+            validators=validators,
+            cls_kwargs=cls_kwargs,
+            exclude=exclude,
+        )
+
+        data = {
+            name: getattr(self, column.name)
+            for column in self.__table__.columns
+            if (name := column.name) in model.model_fields
+        }
+
+        return model(**data)
 
     @classmethod
     def table_info(cls):
