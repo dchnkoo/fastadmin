@@ -9,7 +9,17 @@ import pydantic as _p
 import typing as _t
 
 if _t.TYPE_CHECKING:
-    from .tools import FastAdminBase
+    pass
+
+
+_T = _t.TypeVar("_T")
+
+
+if _t.TYPE_CHECKING:
+
+    class CustomizedTable(_c.Table, _t.Generic[_T]):
+        data: _t.Sequence[_p.SerializeAsAny[_T]]
+        data_model: _t.Union[_t.Type[_T], None] = _p.Field(default=None, exclude=True)
 
 
 class BaseModelComponents(_p.BaseModel):
@@ -133,11 +143,11 @@ class BaseModelComponents(_p.BaseModel):
     @classmethod
     def as_model_table(
         cls,
-        data: _t.Sequence[_t.Union["FastAdminBase", _t.Self, dict]],
+        data: _t.Sequence[_t.Union[_T, _t.Self, dict]],
         columns: _t.List[_c.display.DisplayLookup] | None = None,
         no_data_message: str | None = None,
         class_name: _cs.ClassNameField | None = None,
-    ) -> _c.Table:
+    ) -> "CustomizedTable[_T | _t.Self]":
         """
         Use this method to create a Table component from a Pydantic model.
         """
