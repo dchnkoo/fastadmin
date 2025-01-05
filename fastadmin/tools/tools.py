@@ -64,20 +64,12 @@ class FastAdminTable(_sa.Table):  # type: ignore
         self,
         config: _p.ConfigDict | None = None,
         doc: str | None = None,
-        base: type[_p.BaseModel] | tuple[type[_p.BaseModel], ...] = BaseModelComponents,
+        base: type[_p.BaseModel] | tuple[type[_p.BaseModel], ...] | None = None,
         module: str = __name__,
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
         cls_kwargs: dict[str, _t.Any] | None = None,
         exclude: list[str] = ...,  # type: ignore
-    ):
-        if base is None:
-            base = BaseModelComponents
-        if (base == BaseModelComponents) is False:
-            if isinstance(base, tuple):
-                base = base + (BaseModelComponents,)
-            else:
-                base = (base, BaseModelComponents)
-
+    ) -> type[_p.BaseModel] | type[BaseModelComponents]:
         if self.cache_pydantic_models and self.__pydantic_model__ is not None:
             return self.__pydantic_model__
 
@@ -101,6 +93,7 @@ class FastAdminTable(_sa.Table):  # type: ignore
             __cls_kwargs__=cls_kwargs,
             **define_columns,
         )
+        model = type(model.__name__, (model, BaseModelComponents), {})
 
         model.fast_model_config = {
             "config": config,

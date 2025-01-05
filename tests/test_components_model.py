@@ -110,6 +110,7 @@ def test_to_pydantic_model():
 def test_fast_model_config():
     model = BaseFastTestModel.as_pydantic_model(
         exclude=["id"],
+        config={"frozen": True},
     )
 
     assert issubclass(model, BaseModelComponents)
@@ -117,11 +118,11 @@ def test_fast_model_config():
     assert "name" in model.model_fields
 
     assert model.fast_model_config == {
-        "exclude": ["id"],
-        "base": BaseModelComponents,
+        "config": {"frozen": True},
         "doc": None,
-        "config": None,
+        "base": None,
         "module": "fastadmin.tools.tools",
         "validators": None,
         "cls_kwargs": None,
+        "exclude": ["id"],
     }
