@@ -4,6 +4,7 @@ from fastui import AnyComponent
 
 import typing as _t
 import inspect
+import enum
 
 if _t.TYPE_CHECKING:
     from starlette.templating import _TemplateResponse
@@ -23,12 +24,21 @@ ALLOWED_RETURN_TYPES = (
 )
 
 
-URI_TYPE = _t.Literal["uri", "with_prefix", "with_parents"]
+class UriType(enum.StrEnum):
+    URI = "uri"
+    WITH_PREFIX = "with_prefix"
+    WITH_PARENTS = "with_parents"
 
 
-API_METHODS = _t.Literal[
-    "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD", "TRACE"
-]
+class RestAPI(enum.StrEnum):
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+    PATCH = "PATCH"
+    OPTIONS = "OPTIONS"
+    HEAD = "HEAD"
+    TRACE = "TRACE"
 
 
 def inheritance_page_tracker[_T: "Page"](obj: _t.Type[_T]) -> _t.Type[_T]:
@@ -110,10 +120,8 @@ def inheritance_page_tracker[_T: "Page"](obj: _t.Type[_T]) -> _t.Type[_T]:
             page_type = cls._validate_render_func()
             cls._type = page_type
 
-            if cls.method not in _t.get_args(API_METHODS):
-                raise ValueError(
-                    f"Method must be one of {API_METHODS} ({cls.__name__})"
-                )
+            if cls.method not in RestAPI:
+                raise ValueError(f"Method must be one of {RestAPI} ({cls.__name__})")
 
     return Wrapper
 
@@ -128,8 +136,8 @@ class Page:
         _tables: FacadeDict[str, "FastAdminTable"]
 
     abstract: bool = False
-    method: API_METHODS = "GET"
-    uri_type: URI_TYPE = "uri"
+    method: RestAPI = RestAPI.GET
+    uri_type: UriType = UriType.URI
     uri: str = ...
 
     @classmethod
@@ -149,12 +157,13 @@ class Page:
 
     @classmethod
     def _handle_uri_type(cls) -> str:
-        if cls.uri_type == "uri":
-            return cls.uri
-        elif cls.uri_type == "with_prefix":
-            return cls._page_uri()
-        elif cls.uri_type == "with_parents":
-            return cls._page_uri(include_parents=True)
+        match cls.uri_type:
+            case UriType.URI:
+                return cls.uri
+            case UriType.WITH_PREFIX:
+                return cls._page_uri()
+            case UriType.WITH_PARENTS:
+                return cls._page_uri(include_parents=True)
 
     @classmethod
     def _page_uri(cls, *, include_parents: bool = False) -> str:
