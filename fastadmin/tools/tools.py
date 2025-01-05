@@ -33,7 +33,6 @@ class FastAdminTable(_sa.Table):  # type: ignore
     if _t.TYPE_CHECKING:
         __table_name__: str
         __table_info__: "TableInfo" | None
-        __pydantic_model__: type[_p.BaseModel] | None
         _columns: DedupeColumnCollection["FastColumn[_t.Any]"]
 
     @classmethod
@@ -69,7 +68,7 @@ class FastAdminTable(_sa.Table):  # type: ignore
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
         cls_kwargs: dict[str, _t.Any] | None = None,
         exclude: list[str] = ...,  # type: ignore
-    ) -> type[_p.BaseModel] | type[BaseModelComponents]:
+    ):
         if self.cache_pydantic_models and self.__pydantic_model__ is not None:
             return self.__pydantic_model__
 
@@ -685,7 +684,7 @@ class FastAdminBase(_declarative):  # type: ignore
         cls,
         config: _p.ConfigDict | None = None,
         doc: str | None = None,
-        base: type[_p.BaseModel] | None = None,
+        base: type[_p.BaseModel] | tuple[type[_p.BaseModel], ...] | None = None,
         module: str = __name__,
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
         cls_kwargs: dict[str, _t.Any] | None = None,
@@ -705,7 +704,7 @@ class FastAdminBase(_declarative):  # type: ignore
         self,
         config: _p.ConfigDict | None = None,
         doc: str | None = None,
-        base: type[_p.BaseModel] | None = None,
+        base: type[_p.BaseModel] | tuple[type[_p.BaseModel], ...] | None = None,
         module: str = __name__,
         validators: dict[str, _t.Callable[[_t.Any], _t.Any]] | None = None,
         cls_kwargs: dict[str, _t.Any] | None = None,
