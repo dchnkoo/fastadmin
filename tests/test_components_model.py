@@ -102,9 +102,9 @@ def test_to_pydantic_model():
     instance = BaseFastTestModel(id=1, name="Test")
     model = instance.to_pydantic_model()
 
-    assert isinstance(model, BaseModelComponents)
     assert model.id == 1
     assert model.name == "Test"
+    assert isinstance(model, BaseModelComponents)
 
 
 def test_fast_model_config():

@@ -690,7 +690,7 @@ class FastAdminBase(_declarative):  # type: ignore
         cls_kwargs: dict[str, _t.Any] | None = None,
         exclude: _t.Iterable[str] = ...,
     ):
-        return cls.__table__.as_pydantic_model(
+        model = cls.__table__.as_pydantic_model(
             config=config,
             doc=doc,
             base=base,
@@ -699,6 +699,8 @@ class FastAdminBase(_declarative):  # type: ignore
             cls_kwargs=cls_kwargs,
             exclude=exclude,
         )
+
+        return _t.cast(_t.Union[type[BaseModelComponents], type[_t.Self]], model)
 
     def to_pydantic_model(
         self,
@@ -726,7 +728,7 @@ class FastAdminBase(_declarative):  # type: ignore
             if (name := column.name) in model.model_fields
         }
 
-        return model(**data)
+        return _t.cast(_t.Union[BaseModelComponents, _t.Self], model(**data))
 
     @classmethod
     def table_info(cls):
