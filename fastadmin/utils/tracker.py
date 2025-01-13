@@ -1,41 +1,64 @@
 import typing as _t
 
 
-def inheritance_tracker[_T](obj: type[_T]) -> type[_T]:
-    class Wrapper(obj):
-        if _t.TYPE_CHECKING:
-            _parent: _t.Optional[type[_T]]
+class InheritanceTracker:
+    if _t.TYPE_CHECKING:
+        _parent: _t.Optional[type["InheritanceTracker"]]
 
-        __last_version__: type[_T] = obj
+    __last_version__: type["InheritanceTracker"] = None
 
-        @classmethod
-        def _check_multiple_inheritance(cls) -> _t.Optional[type[_T]]:
-            parent = None
-            for base in cls.__bases__:
-                if base is not Wrapper and issubclass(base, obj):
-                    if parent is not None:
-                        raise ValueError(
-                            f"Multiple inheritance with Page object is not allowed ({cls.__name__})"
-                        )
-                    parent = base
-            return parent
+    def _init_subclass(cls) -> None:
+        parent = cls.__check_multiplie_inheritance__()
+        cls.__set_last_version__()
+        cls._parent = parent
 
-        def __init_subclass__(cls, **kwargs):
-            super(Wrapper, cls).__init_subclass__(**kwargs)
+    @classmethod
+    def __set_last_version__(cls) -> None:
+        main_obj = cls.__main_obj__()
 
-            parent = cls._check_multiple_inheritance()
-            cls._parent = parent
+        if main_obj.__last_version__ is None:
+            main_obj.__last_version__ = cls
 
-            if issubclass(cls, cls.__last_version__):
-                Wrapper.__last_version__ = cls
+        if issubclass(cls, main_obj.__last_version__):
+            main_obj.__last_version__ = cls
 
-        @classmethod
-        def get_versions(cls) -> _t.List[type[_T]]:
-            versions = []
-            current = cls._parent
-            while current is not None:
-                versions.append(current)
-                current = current._parent
-            return versions
+    @classmethod
+    def __check_multiplie_inheritance__(cls) -> _t.Optional[type["InheritanceTracker"]]:
+        parent = None
+        main_obj = cls.__main_obj__()
 
-    return Wrapper
+        same_inheritance_counter = 0
+        for base in cls.__bases__:
+            if base is not main_obj and issubclass(base, main_obj):
+                parent = base
+
+            if issubclass(base, InheritanceTracker):
+                same_inheritance_counter += 1
+
+        if same_inheritance_counter > 1:
+            raise ValueError(
+                f"Multiple inheritance with {InheritanceTracker} object is not allowed ({cls.__name__})"
+            )
+
+        return parent
+
+    def __init_subclass__(cls) -> None:
+        if hasattr(cls, "__main_obj__"):
+            return
+
+        cls.__main_obj__: _t.Callable[[], type[InheritanceTracker]] = lambda: cls
+        cls.__init_subclass__ = classmethod(cls._init_subclass)
+
+    @classmethod
+    def get_versions(
+        cls, *, include_current: bool = False
+    ) -> _t.List[type["InheritanceTracker"]]:
+        versions = []
+        current = cls._parent
+        while current is not None:
+            versions.append(current)
+            current = current._parent
+        versions.reverse()
+        if include_current:
+            versions.append(cls)
+        return versions
