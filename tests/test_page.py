@@ -1,7 +1,13 @@
 from fastadmin.tools.page import ALLOWED_RETURN_TYPES
-from fastadmin import Page
+from fastadmin import Page as _page
 
 import pytest
+
+
+class Page(_page):
+    ...
+
+    def render(self) -> str: ...
 
 
 class TestPage(Page):
@@ -41,7 +47,7 @@ def test_page_uri():
 
 def test_page_inheritance():
     assert TestPageWithParent._parent == TestPage
-    assert TestPageWithParent._get_parents() == [TestPage]
+    assert TestPageWithParent.get_versions() == [TestPage]
 
 
 def test_page_multiple_inheritance():
@@ -50,7 +56,8 @@ def test_page_multiple_inheritance():
         class InvalidPage(TestPage, TestPageWithPrefix):
             uri = "/invalid"
 
-    assert "Multiple inheritance with Page object is not allowed" in str(exc_info.value)
+    assert "Multiple inheritance" in str(exc_info.value)
+    assert "is not allowed" in str(exc_info.value)
 
 
 def test_page_duplicate_uri():

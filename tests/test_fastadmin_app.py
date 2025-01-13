@@ -1,6 +1,6 @@
 from fastadmin import FastAdminTable, FastColumn
 from fastadmin import FastAdmin, AnyComponent
-from fastadmin import Page
+from fastadmin import Page as _page
 
 from fastapi.testclient import TestClient
 from fastapi import Request
@@ -11,6 +11,9 @@ import pytest
 
 
 metadata = sa.MetaData()
+
+
+class Page(_page): ...
 
 
 class TestPage(Page, prefix="/test_prefix"):

@@ -5,12 +5,23 @@ class InheritanceTracker:
     if _t.TYPE_CHECKING:
         _parent: _t.Optional[type["InheritanceTracker"]]
 
+    __define_init_subclass__: bool = True
     __last_version__: type["InheritanceTracker"] = None
 
     def _init_subclass(cls) -> None:
         parent = cls.__check_multiplie_inheritance__()
         cls.__set_last_version__()
         cls._parent = parent
+
+    @classmethod
+    def _make_tracker(cls) -> None:
+        cls.__main_obj__: _t.Callable[[], type[InheritanceTracker]] = lambda: cls
+        cls.__init_subclass__ = classmethod(cls._init_subclass)
+
+    def __init_subclass__(cls) -> None:
+        if cls.__define_init_subclass__ is False:
+            return
+        cls._make_tracker()
 
     @classmethod
     def __set_last_version__(cls) -> None:
@@ -41,13 +52,6 @@ class InheritanceTracker:
             )
 
         return parent
-
-    def __init_subclass__(cls) -> None:
-        if hasattr(cls, "__main_obj__"):
-            return
-
-        cls.__main_obj__: _t.Callable[[], type[InheritanceTracker]] = lambda: cls
-        cls.__init_subclass__ = classmethod(cls._init_subclass)
 
     @classmethod
     def get_versions(
