@@ -1,11 +1,11 @@
 from fastadmin.tools.page import ALLOWED_RETURN_TYPES
-from fastadmin import Page as _page
+from fastadmin import Page as _page, PageMeta
 
 import pytest
 
 
 class Page(_page):
-    ...
+    __pagemeta__ = PageMeta()
 
     def render(self) -> str: ...
 

@@ -18,7 +18,7 @@ class InheritanceTracker:
 
     @classmethod
     def _make_tracker(cls) -> None:
-        cls.__main_obj__: _t.Callable[[], type[InheritanceTracker]] = lambda: cls
+        cls.__main_obj__: type[InheritanceTracker] = cls
         cls.__init_subclass__ = classmethod(cls._init_subclass)
 
     def __init_subclass__(cls) -> None:
@@ -28,7 +28,7 @@ class InheritanceTracker:
 
     @classmethod
     def __set_last_version__(cls) -> None:
-        main_obj = cls.__main_obj__()
+        main_obj = cls.__main_obj__
 
         if main_obj.__last_version__ is None:
             main_obj.__last_version__ = cls
@@ -39,7 +39,7 @@ class InheritanceTracker:
     @classmethod
     def __check_multiplie_inheritance__(cls) -> _t.Optional[type["InheritanceTracker"]]:
         parent = None
-        main_obj = cls.__main_obj__()
+        main_obj = cls.__main_obj__
 
         same_inheritance_counter = 0
         for base in cls.__bases__:

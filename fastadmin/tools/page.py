@@ -49,28 +49,23 @@ class PageMeta:
 
     __pages__: _t.Dict[str, type["Page"]] = {}
 
-    def __new__(cls):
-        if hasattr(cls, "instance") is False:
-            cls.instance = super(PageMeta, cls).__new__(cls)
-        return cls.instance
-
 
 class Page(InheritanceTracker):
     if _t.TYPE_CHECKING:
-        __main_obj__: _t.Callable[[], type["Page"]]
+        __main_obj__: type["Page"]
         _prefix: str
         _type: type
         router_prefix: str
         _parent: _t.Optional[type["Page"]]
         _next: _t.Optional[type["Page"]]
+        __pages__: _t.Dict[str, type["Page"]]
 
         @classmethod
         def get_versions(cls) -> _t.List[type["Page"]]: ...
         def render(self) -> _t.Union[Template, list["AnyComponent"], str]: ...
 
     __define_init_subclass__ = False
-    __pagemeta__ = PageMeta()
-    __pages__ = lambda: Page.__pagemeta__.__pages__  # noqa E731
+    __pagemeta__: PageMeta = ...
     method: RestMethods = RestMethods.GET
     uri_type: UriType = UriType.URI
     uri: str = ...
@@ -84,8 +79,8 @@ class Page(InheritanceTracker):
 
         cls._validate_uri(cls.uri)
 
-        if cls.uri in cls.__pages__():
-            pages = cls.__pages__()
+        if cls.uri in cls.__pages__:
+            pages = cls.__pages__
             if issubclass(cls, pages[cls.uri]) is False:
                 raise ValueError(
                     f"URI `{cls.uri}` is already used by `{pages[cls.uri].__name__}`"
@@ -100,7 +95,20 @@ class Page(InheritanceTracker):
             raise ValueError(f"Method must be one of {RestMethods} ({cls.__name__})")
 
     def __init_subclass__(cls):
+        cls.__check_metdata__()
+        cls.__pages__ = cls.__pagemeta__.__pages__
         cls._make_tracker()
+
+    @classmethod
+    def __check_metdata__(cls):
+        metadata = cls.__pagemeta__
+
+        if type(metadata) is type:
+            raise ValueError(f"{metadata} need to be an instance")
+
+        if (type(metadata) is PageMeta) is False:
+            if issubclass(type(metadata), PageMeta) is False:
+                raise ValueError(f"You need to specify `__pagemeta__` for {cls}")
 
     @classmethod
     def _set_page(cls):
