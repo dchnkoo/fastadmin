@@ -3,8 +3,9 @@ from fastui import AnyComponent, FastUI, prebuilt_html
 from .tools import (
     FastAdminTable,
     Template,
-    Page,
 )
+
+from .config import ROOT_URL, PATH_STRIP
 
 from functools import partial
 
@@ -12,37 +13,36 @@ import fastapi as _fa
 import typing as _t
 
 if _t.TYPE_CHECKING:
+    from .tools import PageMeta
     import sqlalchemy as _sa
 
 
-FastAdminMetadata: _t.TypeAlias = "_sa.MetaData"
+FastUIMetadata: _t.TypeAlias = "_sa.MetaData"
 
 
-class FastAdmin(_fa.FastAPI):
+class FastUIRouter(_fa.FastAPI):
     def __init__(
         self,
-        metadata: FastAdminMetadata,
-        page_meta: type[Page],
-        admin_title: str = "FastAdmin",
-        root_url: str = "/admin",
+        metadata: FastUIMetadata,
+        page_meta: type["PageMeta"],
+        root_url: str = ROOT_URL,
         path_mode: _t.Literal["append", "query"] | None = None,
-        path_strip: str = "/prebuilt",
+        path_strip: str = PATH_STRIP,
         **fastapi_kwds,
     ):
-        super(FastAdmin, self).__init__(**fastapi_kwds)
+        super(FastUIRouter, self).__init__(**fastapi_kwds)
 
         self.metadata = metadata
         self.__validate_fast_metadata__()
 
         self.__page_meta__ = page_meta.__pages__
 
+        self._root_url = root_url
         routes = self.__configure_fast_routes__()
         self.mount(root_url, routes)
 
         page_meta._tables = metadata.tables
 
-        self._title = admin_title
-        self._root_url = root_url
         self._path_mode = path_mode
         self._path_strip = path_strip
         self.__init_prebuilt__()
@@ -60,6 +60,7 @@ class FastAdmin(_fa.FastAPI):
     def __configure_fast_routes__(self):
         router = _fa.FastAPI()
         for uri, page in self.__page_meta__.items():
+            page.router_prefix = self._root_url
             add_route = partial(
                 router.add_api_route,
                 uri,
@@ -84,7 +85,7 @@ class FastAdmin(_fa.FastAPI):
         async def prebuilt() -> _fa.responses.HTMLResponse:
             return _fa.responses.HTMLResponse(
                 prebuilt_html(
-                    title=self._title,
+                    title=self.title,
                     api_root_url=self._root_url,
                     api_path_mode=self._path_mode,
                     api_path_strip=self._path_strip,

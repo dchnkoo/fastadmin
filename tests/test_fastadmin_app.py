@@ -1,6 +1,8 @@
 from fastadmin import FastAdminTable, FastColumn
-from fastadmin import FastAdmin, AnyComponent
+from fastadmin import FastUIRouter, AnyComponent
 from fastadmin import Page as _page
+
+from fastadmin.config import ROOT_URL, PATH_STRIP
 
 from fastapi.testclient import TestClient
 from fastapi import Request
@@ -18,7 +20,6 @@ class Page(_page): ...
 
 class TestPage(Page, prefix="/test_prefix"):
     uri = "/test3"
-    method = "GET"
     uri_type = "with_prefix"
 
     def render(self) -> str:
@@ -27,11 +28,18 @@ class TestPage(Page, prefix="/test_prefix"):
 
 class TestPageWithComponent(Page):
     uri = "/component"
-    method = "GET"
 
     def render(self, request: Request) -> list[AnyComponent]:
         assert isinstance(request, Request)
         return [fc.Page(components=[fc.Text(text="Hello World")])]
+
+
+class TestPageWithParentsUri(TestPageWithComponent):
+    uri = "/home"
+    uri_type = "with_parents"
+
+    def render(self) -> str:
+        return "Hello World"
 
 
 @pytest.fixture
@@ -43,28 +51,28 @@ def fastadmin_app():
         FastColumn("id", sa.Integer, primary_key=True),
         FastColumn("name", sa.String, nullable=False),
     )
-    app = FastAdmin(metadata=metadata, page_meta=Page)
+    app = FastUIRouter(metadata=metadata, page_meta=Page.__pagemeta__, title="FastUI")
     return app
 
 
-def test_fastadmin_initialization(fastadmin_app: FastAdmin):
-    assert fastadmin_app._title == "FastAdmin"
-    assert fastadmin_app._root_url == "/admin"
+def test_fastadmin_initialization(fastadmin_app: FastUIRouter):
+    assert fastadmin_app.title == "FastUI"
+    assert fastadmin_app._root_url == ROOT_URL
     assert fastadmin_app._path_mode is None
-    assert fastadmin_app._path_strip == "/prebuilt"
+    assert fastadmin_app._path_strip == PATH_STRIP
 
 
-def test_fastadmin_routes(fastadmin_app: FastAdmin):
+def test_fastadmin_routes(fastadmin_app: FastUIRouter):
     client = TestClient(fastadmin_app)
-    response = client.get("/admin/test_prefix/test3")
+    response = client.get(ROOT_URL + "/test_prefix/test3")
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert response.status_code == 200
     assert response.text == "TestPage"
 
 
-def test_fastadmin_component_route(fastadmin_app: FastAdmin):
+def test_fastadmin_component_route(fastadmin_app: FastUIRouter):
     client = TestClient(fastadmin_app)
-    response = client.get("/admin/component")
+    response = client.get(ROOT_URL + "/component")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
     assert response.json() == [
@@ -81,22 +89,36 @@ def test_fastadmin_invalid_metadata():
             sa.Column("id", sa.Integer, primary_key=True),
             sa.Column("name", sa.String, nullable=False),
         )
-        FastAdmin(metadata=metadata, page_meta=Page)
+        FastUIRouter(metadata=metadata, page_meta=Page)
 
     assert str(exc_info.value) == "metadata.tables must be FastAdminTable instances"
 
 
-def test_fastadmin_app_routes(fastadmin_app: FastAdmin):
+def test_fastadmin_app_routes(fastadmin_app: FastUIRouter):
     pathes = [route.path for route in fastadmin_app.routes[4].app.routes]
 
     assert "/test_prefix/test3" in pathes
     assert "/component" in pathes
 
 
-def test_fastadmin_prebuilt_route(fastadmin_app: FastAdmin):
+def test_fastadmin_prebuilt_route(fastadmin_app: FastUIRouter):
     client = TestClient(fastadmin_app)
-    response = client.get("/prebuilt")
+    response = client.get(PATH_STRIP)
 
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert response.text.startswith("<!doctype html>")
+
+
+def test_fastadmin_page_with_parents_uri(fastadmin_app: FastUIRouter):
+    assert TestPageWithParentsUri.get_uri() == "/component/home"
+
+    client = TestClient(fastadmin_app)
+    response = client.get(ROOT_URL + "/component/home")
+
+    assert response.status_code == 200
+    assert response.text == "Hello World"
+
+
+def test_fastadmin_page_with_router_prefix(fastadmin_app: FastUIRouter):
+    assert TestPageWithParentsUri.router_url() == ROOT_URL + "/component/home"

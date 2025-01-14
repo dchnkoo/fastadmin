@@ -1,3 +1,3 @@
 from fastui import AnyComponent
-from .router import FastAdmin
+from .router import FastUIRouter
 from .tools import *

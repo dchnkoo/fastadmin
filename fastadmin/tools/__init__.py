@@ -8,5 +8,8 @@ from .tools import (
 )
 from .page import (
     Template,
+    PageMeta,
+    RestMethods,
+    UriType,
     Page,
 )

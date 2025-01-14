@@ -32,7 +32,7 @@ class UriType(enum.StrEnum):
     WITH_PARENTS = "with_parents"
 
 
-class RestAPI(enum.StrEnum):
+class RestMethods(enum.StrEnum):
     GET = "GET"
     POST = "POST"
     PUT = "PUT"
@@ -43,20 +43,35 @@ class RestAPI(enum.StrEnum):
     TRACE = "TRACE"
 
 
+class PageMeta:
+    if _t.TYPE_CHECKING:
+        _tables: FacadeDict[str, "FastAdminTable"]
+
+    __pages__: _t.Dict[str, type["Page"]] = {}
+
+    def __new__(cls):
+        if hasattr(cls, "instance") is False:
+            cls.instance = super(PageMeta, cls).__new__(cls)
+        return cls.instance
+
+
 class Page(InheritanceTracker):
     if _t.TYPE_CHECKING:
         __main_obj__: _t.Callable[[], type["Page"]]
         _prefix: str
         _type: type
-        _tables: FacadeDict[str, "FastAdminTable"]
+        router_prefix: str
+        _parent: _t.Optional[type["Page"]]
+        _next: _t.Optional[type["Page"]]
 
         @classmethod
         def get_versions(cls) -> _t.List[type["Page"]]: ...
         def render(self) -> _t.Union[Template, list["AnyComponent"], str]: ...
 
     __define_init_subclass__ = False
-    __pages__: _t.Dict[str, type["Page"]] = {}
-    method: RestAPI = RestAPI.GET
+    __pagemeta__ = PageMeta()
+    __pages__ = lambda: Page.__pagemeta__.__pages__  # noqa E731
+    method: RestMethods = RestMethods.GET
     uri_type: UriType = UriType.URI
     uri: str = ...
 
@@ -69,23 +84,27 @@ class Page(InheritanceTracker):
 
         cls._validate_uri(cls.uri)
 
-        if cls.uri in cls.__pages__:
-            if issubclass(cls, cls.__pages__[cls.uri]) is False:
+        if cls.uri in cls.__pages__():
+            pages = cls.__pages__()
+            if issubclass(cls, pages[cls.uri]) is False:
                 raise ValueError(
-                    f"URI `{cls.uri}` is already used by `{cls.__pages__[cls.uri].__name__}`"
-                    f" if you want to use the same URI, please inherit from `{cls.__pages__[cls.uri].__name__}`"
+                    f"URI `{cls.uri}` is already used by `{pages[cls.uri].__name__}`"
+                    f" if you want to use the same URI, please inherit from `{pages[cls.uri].__name__}`"
                 )
 
-        cls.__pages__[cls.get_uri()] = cls
-
+        cls._set_page()
         page_type = cls._validate_render_func()
         cls._type = page_type
 
-        if cls.method not in RestAPI:
-            raise ValueError(f"Method must be one of {RestAPI} ({cls.__name__})")
+        if cls.method not in RestMethods:
+            raise ValueError(f"Method must be one of {RestMethods} ({cls.__name__})")
 
     def __init_subclass__(cls):
         cls._make_tracker()
+
+    @classmethod
+    def _set_page(cls):
+        cls.__pagemeta__.__pages__[cls.get_uri()] = cls
 
     @staticmethod
     def _validate_uri(uri: str):
@@ -126,6 +145,10 @@ class Page(InheritanceTracker):
             )
 
         return return_annotation
+
+    @classmethod
+    def router_url(cls) -> str:
+        return cls.router_prefix + cls.get_uri()
 
     @classmethod
     def get_uri(cls) -> str:

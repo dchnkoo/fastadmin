@@ -4,6 +4,7 @@ import typing as _t
 class InheritanceTracker:
     if _t.TYPE_CHECKING:
         _parent: _t.Optional[type["InheritanceTracker"]]
+        _next: _t.Optional[type["InheritanceTracker"]]
 
     __define_init_subclass__: bool = True
     __last_version__: type["InheritanceTracker"] = None
@@ -12,6 +13,8 @@ class InheritanceTracker:
         parent = cls.__check_multiplie_inheritance__()
         cls.__set_last_version__()
         cls._parent = parent
+        if parent is not None:
+            parent._next = cls
 
     @classmethod
     def _make_tracker(cls) -> None:
