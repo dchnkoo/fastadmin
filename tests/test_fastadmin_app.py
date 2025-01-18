@@ -5,7 +5,7 @@ from fastadmin import Page as _page
 from fastadmin.config import ROOT_URL, PATH_STRIP
 
 from fastapi.testclient import TestClient
-from fastapi import Request
+from fastapi import Request, responses
 
 import fastui.components as fc
 import sqlalchemy as sa
@@ -21,9 +21,8 @@ class Page(_page):
 
 class TestPage(Page, prefix="/test_prefix"):
     uri = "/test3"
-    uri_type = "with_prefix"
 
-    def render(self) -> str:
+    def render(self) -> responses.HTMLResponse:
         return "TestPage"
 
 
@@ -37,9 +36,8 @@ class TestPageWithComponent(Page):
 
 class TestPageWithParentsUri(TestPageWithComponent):
     uri = "/home"
-    uri_type = "with_parents"
 
-    def render(self) -> str:
+    def render(self) -> responses.HTMLResponse:
         return "Hello World"
 
 
@@ -112,14 +110,14 @@ def test_fastadmin_prebuilt_route(fastadmin_app: FastUIRouter):
 
 
 def test_fastadmin_page_with_parents_uri(fastadmin_app: FastUIRouter):
-    assert TestPageWithParentsUri.get_uri() == "/component/home"
+    assert TestPageWithParentsUri.get_uri() == ROOT_URL + "/component/home"
 
     client = TestClient(fastadmin_app)
-    response = client.get(ROOT_URL + "/component/home")
+    response = client.get(TestPageWithParentsUri.get_uri())
 
     assert response.status_code == 200
     assert response.text == "Hello World"
 
 
 def test_fastadmin_page_with_router_prefix(fastadmin_app: FastUIRouter):
-    assert TestPageWithParentsUri.router_url() == ROOT_URL + "/component/home"
+    assert TestPageWithParentsUri.get_uri() == ROOT_URL + "/component/home"

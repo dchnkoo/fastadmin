@@ -733,3 +733,23 @@ class FastAdminBase(_declarative):  # type: ignore
     @classmethod
     def table_info(cls):
         return cls.__table__.__fastadmin_metadata__()
+
+    @classmethod
+    def __iter_foregin_keys__(
+        cls,
+    ) -> _t.Generator[tuple[str, FastAdminTable], _t.Any, None]:
+        info = cls.table_info()
+
+        for name, column in info.foregin_colummns.items():
+            foregin_key = column.foreign_keys.pop()
+            table = foregin_key.constraint.referred_table
+            yield name, table
+
+    @classmethod
+    def __list_foregin_keys__(cls) -> list[tuple[str, FastAdminTable]]:
+        return list(cls.__iter_foregin_keys__())
+
+    @classmethod
+    def primary_key(cls):
+        info = cls.table_info()
+        return next(iter(info.primary_columns.values()))

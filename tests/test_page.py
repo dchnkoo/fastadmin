@@ -1,57 +1,60 @@
-from fastadmin.tools.page import ALLOWED_RETURN_TYPES
-from fastadmin import Page as _page
+from fastadmin import Page as _page, PageMeta
+
+from fastapi import responses
 
 import pytest
 
 
 class Page(_page):
-    def render(self) -> str: ...
+    __pagemeta__ = PageMeta()
+
+    def render(self) -> responses.HTMLResponse: ...
 
 
-class TestPage(Page):
+class TestPageOnlyPage(Page):
     uri = "/test"
 
-    def render(self) -> str:
-        return "TestPage"
+    def render(self) -> responses.HTMLResponse:
+        return "TestPageOnlyPage"
 
 
 class TestPageWithPrefix(Page, prefix="/prefix"):
     uri = "/test2"
 
-    def render(self) -> str:
+    def render(self) -> responses.HTMLResponse:
         return "TestPageWithPrefix"
 
 
-class TestPageWithParent(TestPage):
+class TestPageWithParent(TestPageOnlyPage):
     uri = "/child"
 
-    def render(self) -> str:
+    def render(self) -> responses.HTMLResponse:
         return "TestPageWithParent"
 
 
 class TestPageWithMultipleInheritance(Page):
     uri = "/multiple"
 
-    def render(self) -> str:
+    def render(self) -> responses.HTMLResponse:
         return "TestPageWithMultipleInheritance"
 
 
 def test_page_uri():
-    assert TestPage._page_uri() == "/test"
-    assert TestPageWithPrefix._page_uri() == "/prefix/test2"
-    assert TestPageWithParent._page_uri() == "/child"
-    assert TestPageWithParent._page_uri(include_parents=True) == "/test/child"
+    assert TestPageOnlyPage.get_uri() == "/test"
+    assert TestPageWithPrefix.get_uri() == "/prefix/test2"
+    assert TestPageWithParent.get_uri() == "/test/child"
+    assert TestPageWithParent.get_uri() == "/test/child"
 
 
 def test_page_inheritance():
-    assert TestPageWithParent._parent == TestPage
-    assert TestPageWithParent.get_versions() == [TestPage]
+    assert TestPageWithParent._parent == TestPageOnlyPage
+    assert TestPageWithParent.get_versions() == [TestPageOnlyPage]
 
 
 def test_page_multiple_inheritance():
     with pytest.raises(ValueError) as exc_info:
 
-        class InvalidPage(TestPage, TestPageWithPrefix):
+        class InvalidPage(TestPageOnlyPage, TestPageWithPrefix):
             uri = "/invalid"
 
     assert "Multiple inheritance" in str(exc_info.value)
@@ -64,7 +67,7 @@ def test_page_duplicate_uri():
         class DuplicatePage(Page):
             uri = "/test"
 
-    assert "URI `/test` is already used by `TestPage`" in str(exc_info.value)
+    assert "URI `/test` is already used by `TestPageOnlyPage`" in str(exc_info.value)
 
 
 def test_page_prefix_validation():
@@ -86,22 +89,22 @@ def test_page_uri_validation():
 
 
 def test_page_render():
-    page = TestPage()
-    assert page.render() == "TestPage"
+    page = TestPageOnlyPage()
+    assert page.render() == "TestPageOnlyPage"
 
 
 def test_page_str():
-    page = TestPage()
-    assert str(page) == "<TestPage /test>"
+    page = TestPageOnlyPage()
+    assert str(page) == "<TestPageOnlyPage /test>"
 
 
 def test_page_repr():
-    page = TestPage()
-    assert repr(page) == "<TestPage /test>"
+    page = TestPageOnlyPage()
+    assert repr(page) == "<TestPageOnlyPage /test>"
 
 
 def test_page_hash():
-    page = TestPage()
+    page = TestPageOnlyPage()
     assert hash(page) == hash("/test")
 
 
@@ -146,9 +149,7 @@ def test_page_invalid_render_return_type():
             def render(self) -> int:
                 return 123
 
-    assert f"Page `render` method must return one of {ALLOWED_RETURN_TYPES} " in str(
-        exc_info.value
-    )
+    assert f"Page `render` method must return one of" in str(exc_info.value)
 
 
 def test_page_invalid_api_method():
@@ -159,7 +160,7 @@ def test_page_invalid_api_method():
 
             method = "INVALID"
 
-            def render(self) -> str:
+            def render(self) -> responses.HTMLResponse:
                 return ...
 
     assert "Method must be one of" in str(exc_info.value)

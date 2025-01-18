@@ -2,7 +2,6 @@ from fastui import AnyComponent, FastUI, prebuilt_html
 
 from .tools import (
     FastAdminTable,
-    Template,
 )
 
 from .config import ROOT_URL, PATH_STRIP
@@ -13,7 +12,7 @@ import fastapi as _fa
 import typing as _t
 
 if _t.TYPE_CHECKING:
-    from .tools import PageMeta
+    from .tools import PageMeta, Page
     import sqlalchemy as _sa
 
 
@@ -33,19 +32,24 @@ class FastUIRouter(_fa.FastAPI):
         super(FastUIRouter, self).__init__(**fastapi_kwds)
 
         self.metadata = metadata
+        page_meta.root_url = root_url
+        page_meta.path_strip = path_strip
         self.__validate_fast_metadata__()
 
-        self.__page_meta__ = page_meta.__pages__
+        self.page_meta = page_meta
+        page_meta._tables = metadata.tables
 
-        self._root_url = root_url
         routes = self.__configure_fast_routes__()
         self.mount(root_url, routes)
 
-        page_meta._tables = metadata.tables
-
-        self._path_mode = path_mode
+        self._root_url = root_url
         self._path_strip = path_strip
+        self._path_mode = path_mode
         self.__init_prebuilt__()
+
+    @property
+    def pages(self) -> _t.Dict[str, type["Page"]]:
+        return self.page_meta.__pages__
 
     def __validate_fast_metadata__(self):
         if (
@@ -59,8 +63,7 @@ class FastUIRouter(_fa.FastAPI):
 
     def __configure_fast_routes__(self):
         router = _fa.FastAPI()
-        for uri, page in self.__page_meta__.items():
-            page.router_prefix = self._root_url
+        for uri, page in self.pages.items():
             add_route = partial(
                 router.add_api_route,
                 uri,
@@ -68,14 +71,14 @@ class FastUIRouter(_fa.FastAPI):
                 methods=[page.method],
             )
             match page:
-                case _ if page._type in (Template, "Template", str):
-                    add_route(response_class=_fa.responses.HTMLResponse)
                 case _ if page._type in (
                     "list[AnyComponent]",
                     list[AnyComponent],
                     list["AnyComponent"],
                 ):
                     add_route(response_model_exclude_none=True, response_model=FastUI)
+                case _:
+                    add_route(response_class=page._type)
         return router
 
     def __init_prebuilt__(self):
@@ -93,3 +96,8 @@ class FastUIRouter(_fa.FastAPI):
             )
 
         self.mount(self._path_strip, main)
+
+    def mount(self, path: str, app: "FastUIRouter", name=None):
+        super(FastUIRouter, self).mount(path, app, name)
+        if type(app) is self.__class__:
+            app.page_meta.mount_path = path

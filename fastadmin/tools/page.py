@@ -4,6 +4,8 @@ from sqlalchemy.util import FacadeDict
 
 from fastui import AnyComponent
 
+from fastapi import responses
+
 import typing as _t
 import inspect
 import enum
@@ -16,14 +18,22 @@ if _t.TYPE_CHECKING:
 Template: _t.TypeAlias = "_TemplateResponse"
 
 
-ALLOWED_RETURN_TYPES = (
+SPECIFIC_TYPES = (
     list["AnyComponent"],
     "list[AnyComponent]",
     list[AnyComponent],
-    "Template",
-    Template,
-    str,
 )
+
+
+FASTAPI_RESPONSES = tuple(
+    fresponse
+    for response in inspect.getmembers(responses, inspect.isclass)
+    if issubclass((fresponse := response[1]), responses.Response)
+    or fresponse is responses.Response
+)
+
+
+ALLOWED_RESPONSES = SPECIFIC_TYPES + FASTAPI_RESPONSES
 
 
 class UriType(enum.StrEnum):
@@ -47,27 +57,30 @@ class PageMeta:
     if _t.TYPE_CHECKING:
         _tables: FacadeDict[str, "FastAdminTable"]
 
-    __pages__: _t.Dict[str, type["Page"]] = {}
+    root_url: str = ""
+    path_strip: str = ""
+    mount_path: str = ""
+
+    def __init__(self):
+        self.__pages__: _t.Dict[str, type["Page"]] = {}
 
 
 class Page(InheritanceTracker):
     if _t.TYPE_CHECKING:
         __main_obj__: type["Page"]
-        _prefix: str
         _type: type
-        router_prefix: str
         _parent: _t.Optional[type["Page"]]
         _next: _t.Optional[type["Page"]]
         __pages__: _t.Dict[str, type["Page"]]
 
         @classmethod
         def get_versions(cls) -> _t.List[type["Page"]]: ...
-        def render(self) -> _t.Union[Template, list["AnyComponent"], str]: ...
+        def render(self) -> _t.Union[Template, list["AnyComponent"], str, dict]: ...
 
+    _prefix: str = ""
     __define_init_subclass__ = False
     __pagemeta__ = PageMeta()
     method: RestMethods = RestMethods.GET
-    uri_type: UriType = UriType.URI
     uri: str = ...
 
     def _init_subclass(cls, prefix: str = None):
@@ -147,57 +160,42 @@ class Page(InheritanceTracker):
                 f"Page `render` method must have a return annotation ({cls.__name__})"
             )
 
-        if return_annotation not in ALLOWED_RETURN_TYPES:
+        if return_annotation not in ALLOWED_RESPONSES:
             raise ValueError(
-                f"Page `render` method must return one of {ALLOWED_RETURN_TYPES} ({cls.__name__})"
+                f"Page `render` method must return one of {ALLOWED_RESPONSES} ({cls.__name__})"
             )
 
         return return_annotation
 
     @classmethod
-    def router_url(cls) -> str:
-        return cls.router_prefix + cls.get_uri()
+    def get_uri(cls, add_root_uri: bool = True) -> str:
+        if add_root_uri is False:
+            root_prefix = cls.__pagemeta__.path_strip
+        else:
+            root_prefix = cls.__pagemeta__.root_url
 
-    @classmethod
-    def get_uri(cls) -> str:
-        return cls._handle_uri_type()
-
-    @classmethod
-    def _handle_uri_type(cls) -> str:
-        match cls.uri_type:
-            case UriType.URI:
-                return cls.uri
-            case UriType.WITH_PREFIX:
-                return cls._page_uri()
-            case UriType.WITH_PARENTS:
-                return cls._page_uri(include_parents=True)
-
-    @classmethod
-    def _page_uri(cls, *, include_parents: bool = False) -> str:
-        if include_parents:
-            return cls._build_recursive_uri() + cls.uri
-        prefix = ""
-        if hasattr(cls, "_prefix"):
-            prefix = cls._prefix
-        return f"{prefix}{cls.uri}"
+        return (
+            cls.__pagemeta__.mount_path
+            + root_prefix
+            + cls._build_recursive_uri()
+            + cls.uri
+        )
 
     @classmethod
     def _page_uris_recursive(cls) -> _t.List[str]:
-        return [parent.uri for parent in cls.get_versions()] + [
-            cls._prefix if hasattr(cls, "_prefix") else ""
-        ]
+        return [parent.uri for parent in cls.get_versions()]
 
     @classmethod
     def _build_recursive_uri(cls) -> str:
         uris = cls._page_uris_recursive()
         uris.reverse()
-        return "".join(uris)
+        return cls._prefix + "".join(uris)
 
     def __str__(self):
-        return f"<{self.__class__.__name__} {self._page_uri()}>"
+        return f"<{self.__class__.__name__} {self.get_uri()}>"
 
     def __repr__(self):
         return self.__str__()
 
     def __hash__(self):
-        return hash(self._page_uri())
+        return hash(self.uri)
