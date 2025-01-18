@@ -8,8 +8,6 @@ import pytest
 class Page(_page):
     __pagemeta__ = PageMeta()
 
-    def render(self) -> responses.HTMLResponse: ...
-
 
 class TestPageOnlyPage(Page):
     uri = "/test"
@@ -47,7 +45,7 @@ def test_page_uri():
 
 
 def test_page_inheritance():
-    assert TestPageWithParent._parent == TestPageOnlyPage
+    assert TestPageWithParent.parent == TestPageOnlyPage
     assert TestPageWithParent.get_versions() == [TestPageOnlyPage]
 
 
@@ -122,7 +120,13 @@ def test_render_merhod_ovveride_like_variable():
 def test_page_missing_render_method():
     with pytest.raises(ValueError) as exc_info:
 
-        class MissingRenderMethodPage(Page):
+        class MissingRenderMethodPageInit(Page):
+            uri = "/missing_init"
+
+            def render(self) -> responses.HTMLResponse:
+                pass
+
+        class MissingRenderMethodPage(MissingRenderMethodPageInit):
             uri = "/missing"
 
     assert "Page `render` method must be a method of the class" in str(exc_info.value)
@@ -164,3 +168,39 @@ def test_page_invalid_api_method():
                 return ...
 
     assert "Method must be one of" in str(exc_info.value)
+
+
+def test_page_get_uri_with_args():
+    class TestPageWithArgs(Page):
+        uri = "/test/{}/{}"
+
+        def render(self) -> responses.HTMLResponse:
+            return "TestPageWithArgs"
+
+    assert TestPageWithArgs.get_uri("value1", "value2") == "/test/value1/value2"
+
+
+def test_page_get_uri_with_kwargs():
+    class TestPageWithKwargs(Page):
+        uri = "/test/{arg1}/{arg2}"
+
+        def render(self) -> responses.HTMLResponse:
+            return "TestPageWithKwargs"
+
+    assert (
+        TestPageWithKwargs.get_uri(arg1="value1", arg2="value2")
+        == "/test/value1/value2"
+    )
+
+
+def test_page_get_uri_with_args_and_kwargs():
+    class TestPageWithArgsAndKwargs(Page):
+        uri = "/test/{}/{arg}"
+
+        def render(self) -> responses.HTMLResponse:
+            return "TestPageWithArgsAndKwargs"
+
+    assert (
+        TestPageWithArgsAndKwargs.get_uri("value1", arg="value2")
+        == "/test/value1/value2"
+    )

@@ -69,12 +69,13 @@ class Page(InheritanceTracker):
     if _t.TYPE_CHECKING:
         __main_obj__: type["Page"]
         _type: type
-        _parent: _t.Optional[type["Page"]]
-        _next: _t.Optional[type["Page"]]
+        parent: _t.Optional[type["Page"]]
         __pages__: _t.Dict[str, type["Page"]]
 
         @classmethod
-        def get_versions(cls) -> _t.List[type["Page"]]: ...
+        def get_versions(
+            cls, *, include_current: bool = False
+        ) -> _t.List[type["Page"]]: ...
         def render(self) -> _t.Union[Template, list["AnyComponent"], str, dict]: ...
 
     _prefix: str = ""
@@ -83,8 +84,8 @@ class Page(InheritanceTracker):
     method: RestMethods = RestMethods.GET
     uri: str = ...
 
-    def _init_subclass(cls, prefix: str = None):
-        super(Page, cls)._init_subclass(cls)
+    def _init_subclass(cls, prefix: str = None, alias: str | None = None):
+        super(Page, cls)._init_subclass(cls, alias)
         if prefix is not None:
             if prefix.startswith("/") is False:
                 raise ValueError(f"Prefix must start with a `/` ({cls.__name__})")
@@ -168,18 +169,22 @@ class Page(InheritanceTracker):
         return return_annotation
 
     @classmethod
-    def get_uri(cls, add_root_uri: bool = True) -> str:
+    def get_uri(cls, *args, add_root_uri: bool = True, **kwds) -> str:
         if add_root_uri is False:
             root_prefix = cls.__pagemeta__.path_strip
         else:
             root_prefix = cls.__pagemeta__.root_url
 
-        return (
+        uri = (
             cls.__pagemeta__.mount_path
             + root_prefix
             + cls._build_recursive_uri()
             + cls.uri
         )
+
+        if args or kwds:
+            return uri.format(*args, **kwds)
+        return uri
 
     @classmethod
     def _page_uris_recursive(cls) -> _t.List[str]:
@@ -188,7 +193,6 @@ class Page(InheritanceTracker):
     @classmethod
     def _build_recursive_uri(cls) -> str:
         uris = cls._page_uris_recursive()
-        uris.reverse()
         return cls._prefix + "".join(uris)
 
     def __str__(self):

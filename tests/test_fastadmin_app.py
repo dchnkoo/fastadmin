@@ -1,6 +1,6 @@
 from fastadmin import FastAdminTable, FastColumn
 from fastadmin import FastUIRouter, AnyComponent
-from fastadmin import Page as _page
+from fastadmin import Page as _page, PageMeta
 
 from fastadmin.config import ROOT_URL, PATH_STRIP
 
@@ -15,18 +15,22 @@ import pytest
 metadata = sa.MetaData()
 
 
-class Page(_page):
-    pass
+class AppPage(_page):
+    __pagemeta__ = PageMeta()
 
 
-class TestPage(Page, prefix="/test_prefix"):
+class AppPage2(_page):
+    __pagemeta__ = PageMeta()
+
+
+class TestPage(AppPage, prefix="/test_prefix"):
     uri = "/test3"
 
     def render(self) -> responses.HTMLResponse:
         return "TestPage"
 
 
-class TestPageWithComponent(Page):
+class TestPageWithComponent(AppPage):
     uri = "/component"
 
     def render(self, request: Request) -> list[AnyComponent]:
@@ -41,7 +45,21 @@ class TestPageWithParentsUri(TestPageWithComponent):
         return "Hello World"
 
 
-@pytest.fixture
+class TestPageForMount(AppPage2):
+    uri = "/mount"
+
+    def render(self) -> responses.HTMLResponse:
+        return "Mount"
+
+
+class TestPageForMount2(AppPage2):
+    uri = "/mount2"
+
+    def render(self) -> responses.HTMLResponse:
+        return "Mount2"
+
+
+@pytest.fixture(scope="session")
 def fastadmin_app():
     metadata = sa.MetaData()
     table = FastAdminTable(
@@ -50,20 +68,22 @@ def fastadmin_app():
         FastColumn("id", sa.Integer, primary_key=True),
         FastColumn("name", sa.String, nullable=False),
     )
-    app = FastUIRouter(metadata=metadata, page_meta=Page.__pagemeta__, title="FastUI")
+    app = FastUIRouter(
+        metadata=metadata, page_meta=AppPage.__pagemeta__, title="FastUI"
+    )
     return app
 
 
 def test_fastadmin_initialization(fastadmin_app: FastUIRouter):
     assert fastadmin_app.title == "FastUI"
-    assert fastadmin_app._root_url == ROOT_URL
+    assert fastadmin_app.page_meta.root_url == ROOT_URL
     assert fastadmin_app._path_mode is None
-    assert fastadmin_app._path_strip == PATH_STRIP
+    assert fastadmin_app.page_meta.path_strip == PATH_STRIP
 
 
 def test_fastadmin_routes(fastadmin_app: FastUIRouter):
     client = TestClient(fastadmin_app)
-    response = client.get(ROOT_URL + "/test_prefix/test3")
+    response = client.get(TestPage.get_uri())
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     assert response.status_code == 200
     assert response.text == "TestPage"
@@ -71,7 +91,7 @@ def test_fastadmin_routes(fastadmin_app: FastUIRouter):
 
 def test_fastadmin_component_route(fastadmin_app: FastUIRouter):
     client = TestClient(fastadmin_app)
-    response = client.get(ROOT_URL + "/component")
+    response = client.get(TestPageWithComponent.get_uri())
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
     assert response.json() == [
@@ -88,7 +108,7 @@ def test_fastadmin_invalid_metadata():
             sa.Column("id", sa.Integer, primary_key=True),
             sa.Column("name", sa.String, nullable=False),
         )
-        FastUIRouter(metadata=metadata, page_meta=Page)
+        FastUIRouter(metadata=metadata, page_meta=AppPage)
 
     assert str(exc_info.value) == "metadata.tables must be FastAdminTable instances"
 
@@ -121,3 +141,22 @@ def test_fastadmin_page_with_parents_uri(fastadmin_app: FastUIRouter):
 
 def test_fastadmin_page_with_router_prefix(fastadmin_app: FastUIRouter):
     assert TestPageWithParentsUri.get_uri() == ROOT_URL + "/component/home"
+
+
+def test_fastadmin_mount():
+    app = FastUIRouter(
+        metadata=metadata, page_meta=AppPage.__pagemeta__, title="FastUI"
+    )
+    sub_app = FastUIRouter(
+        metadata=metadata, page_meta=AppPage2.__pagemeta__, title="SubApp"
+    )
+    app.mount("/sub", sub_app)
+    assert sub_app.page_meta.mount_path == "/sub"
+    assert TestPageForMount2.get_uri() == "/sub" + ROOT_URL + "/mount2"
+
+    client = TestClient(app)
+
+    response = client.get(TestPageForMount2.get_uri())
+
+    assert response.status_code == 200
+    assert response.text == "Mount2"

@@ -3,18 +3,38 @@ import typing as _t
 
 class InheritanceTracker:
     if _t.TYPE_CHECKING:
-        _parent: _t.Optional[type["InheritanceTracker"]]
-        _next: _t.Optional[type["InheritanceTracker"]]
+        parent: _t.Optional[type["InheritanceTracker"]]
 
     __define_init_subclass__: bool = True
     __last_version__: type["InheritanceTracker"] = None
 
-    def _init_subclass(cls) -> None:
+    def _init_subclass(cls, alias: str | None = None) -> None:
         parent = cls.__check_multiplie_inheritance__()
         cls.__set_last_version__()
-        cls._parent = parent
-        if parent is not None:
-            parent._next = cls
+        cls.parent = parent
+        cls._check_alias(alias, parent)
+
+    @classmethod
+    def _check_alias(
+        cls, alias: str | None, parent: type["InheritanceTracker"] | None
+    ) -> None:
+        if parent is None and alias is None:
+            return
+
+        if parent is None and alias is not None:
+            raise ValueError(
+                f"You cannot set alias without parent class ({cls.__name__})"
+            )
+
+        if parent is not None and alias is None:
+            return
+
+        if parent is not None and alias is not None:
+            if hasattr(parent, alias):
+                raise ValueError(
+                    f"Alias `{alias}` is already used in `{parent.__name__}`"
+                )
+            setattr(parent, alias, cls)
 
     @classmethod
     def _make_tracker(cls) -> None:
@@ -61,10 +81,10 @@ class InheritanceTracker:
         cls, *, include_current: bool = False
     ) -> _t.List[type["InheritanceTracker"]]:
         versions = []
-        current = cls._parent
+        current = cls.parent
         while current is not None:
             versions.append(current)
-            current = current._parent
+            current = current.parent
         versions.reverse()
         if include_current:
             versions.append(cls)

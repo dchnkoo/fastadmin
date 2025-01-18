@@ -20,7 +20,7 @@ class AnotherBaseClass(InheritanceTracker):
 
 
 def test_single_inheritance():
-    assert DerivedClass._parent == None
+    assert DerivedClass.parent == None
     assert DerivedClass.get_versions() == []
 
 
@@ -46,5 +46,45 @@ def test_get_versions_no_include_current():
     assert AnotherDerivedClass.get_versions() == [DerivedClass]
 
 
-def test_next_link_to_object():
-    assert DerivedClass._next == AnotherDerivedClass
+def test_alias_without_parent():
+    with pytest.raises(ValueError) as exc_info:
+
+        class InitTracker(InheritanceTracker):
+            pass
+
+        class AliasWithoutParent(InitTracker, alias="alias"):
+            pass
+
+    assert "You cannot set alias without parent class" in str(exc_info.value)
+
+
+def test_alias_with_parent():
+    class InitTracker(InheritanceTracker):
+        pass
+
+    class ParentClass(InitTracker):
+        pass
+
+    class ChildClass(ParentClass, alias="child"):
+        pass
+
+    assert hasattr(ParentClass, "child")
+    assert ParentClass.child == ChildClass
+
+
+def test_duplicate_alias():
+    class InitTracker(InheritanceTracker):
+        pass
+
+    class ParentClass(InitTracker):
+        pass
+
+    class FirstChildClass(ParentClass, alias="child"):
+        pass
+
+    with pytest.raises(ValueError) as exc_info:
+
+        class SecondChildClass(ParentClass, alias="child"):
+            pass
+
+    assert "Alias `child` is already used in `ParentClass`" in str(exc_info.value)

@@ -42,8 +42,6 @@ class FastUIRouter(_fa.FastAPI):
         routes = self.__configure_fast_routes__()
         self.mount(root_url, routes)
 
-        self._root_url = root_url
-        self._path_strip = path_strip
         self._path_mode = path_mode
         self.__init_prebuilt__()
 
@@ -82,20 +80,20 @@ class FastUIRouter(_fa.FastAPI):
         return router
 
     def __init_prebuilt__(self):
-        main = _fa.FastAPI()
+        _ = _fa.FastAPI()
 
-        @main.get("/{path:path}")
         async def prebuilt() -> _fa.responses.HTMLResponse:
             return _fa.responses.HTMLResponse(
                 prebuilt_html(
                     title=self.title,
-                    api_root_url=self._root_url,
+                    api_root_url=self.page_meta.root_url,
                     api_path_mode=self._path_mode,
-                    api_path_strip=self._path_strip,
+                    api_path_strip=self.page_meta.path_strip,
                 )
             )
 
-        self.mount(self._path_strip, main)
+        _.add_api_route("/{path:path}", prebuilt, methods=["GET"])
+        self.mount(self.page_meta.path_strip, _)
 
     def mount(self, path: str, app: "FastUIRouter", name=None):
         super(FastUIRouter, self).mount(path, app, name)
