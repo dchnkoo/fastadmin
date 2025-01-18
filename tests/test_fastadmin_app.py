@@ -1,6 +1,6 @@
 from fastadmin import FastAdminTable, FastColumn
 from fastadmin import FastUIRouter, AnyComponent
-from fastadmin import Page as _page, PageMeta
+from fastadmin import Page as _page
 
 from fastadmin.config import ROOT_URL, PATH_STRIP
 
@@ -16,7 +16,7 @@ metadata = sa.MetaData()
 
 
 class Page(_page):
-    __pagemeta__ = PageMeta()
+    pass
 
 
 class TestPage(Page, prefix="/test_prefix"):
