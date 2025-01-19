@@ -8,9 +8,6 @@ from fastui import (
 import pydantic as _p
 import typing as _t
 
-if _t.TYPE_CHECKING:
-    pass
-
 
 _T = _t.TypeVar("_T")
 
