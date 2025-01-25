@@ -3,7 +3,7 @@ import pytest_asyncio
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base, Session, DeclarativeBase
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, AsyncSession
-from fastadmin.tools.sessions import (
+from fastadmin import (
     SessionManager,
     session_manager,
     asession_manager,
