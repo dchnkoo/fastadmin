@@ -2,7 +2,7 @@ from .tracker import InheritanceTracker
 
 from sqlalchemy.util import FacadeDict
 
-from fastui import AnyComponent
+from fastui import AnyComponent, components, events, auth as _auth
 
 from fastapi import responses
 
@@ -77,6 +77,11 @@ class Page(InheritanceTracker):
             cls, *, include_current: bool = False
         ) -> _t.List[type["Page"]]: ...
         def render(self) -> _t.Union[Template, list["AnyComponent"], str, dict]: ...
+
+    comp = components
+    display = components.display
+    event = events
+    auth = _auth
 
     _prefix: str = ""
     __define_init_subclass__ = False
