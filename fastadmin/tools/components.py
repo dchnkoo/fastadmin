@@ -148,14 +148,14 @@ class BaseModelComponents(_p.BaseModel):
         """
         Use this method to create a Table component from a Pydantic model.
         """
-        from .tools import FastAdminBase, FastAdminTable
+        from .tools import FastBase, FastAdminTable
 
         to_table = []
 
         for item in data:
             if isinstance(item, dict):
                 to_table.append(cls(**item))
-            elif isinstance(item, (FastAdminBase, FastAdminTable)):
+            elif isinstance(item, (FastBase, FastAdminTable)):
                 model = item.to_pydantic_model(**cls.fast_model_config)
                 to_table.append(model)
             else:

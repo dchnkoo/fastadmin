@@ -1,86 +1,10 @@
 from sqlalchemy.orm.session import Session
-from fastadmin import (
-    fastadmin_mapped_column,
-    FastAdminTable,
-    FastAdminBase,
-    FastColumn,
-)
-
-from sqlalchemy.orm import Mapped, sessionmaker, mapped_column
 import sqlalchemy as _sa
+
+from .tables import User, Post, Comment
 
 import pydantic as _p
 import pytest
-
-
-class User(FastAdminBase):
-    __tablename__ = "users"
-    id: Mapped[int] = fastadmin_mapped_column(
-        _sa.Integer, primary_key=True, frozen=True
-    )
-    name: Mapped[str] = mapped_column(_sa.String, nullable=False)
-    age: Mapped[int] = fastadmin_mapped_column(_sa.Integer, nullable=True)
-
-
-class Post(FastAdminBase):
-    __tablename__ = "posts"
-    id = FastColumn(_sa.Integer, primary_key=True)
-    title = _sa.Column(_sa.String, nullable=False)
-    content = FastColumn(_sa.String, nullable=False, anotation=str)
-    user_id = _sa.Column(_sa.Integer, _sa.ForeignKey("users.id"))
-
-
-Comment = FastAdminTable(
-    "comments",
-    FastAdminBase.metadata,
-    FastColumn("id", _sa.Integer, primary_key=True),
-    FastColumn("content", _sa.String, nullable=False),
-    FastColumn("post_id", _sa.Integer, _sa.ForeignKey("posts.id")),
-    _sa.Column("user_id", _sa.Integer, _sa.ForeignKey("users.id")),
-)
-
-
-@pytest.fixture
-def engine():
-    _engine = _sa.create_engine("sqlite:///:memory:")
-    with _engine.connect() as conn:
-        conn.execute(_sa.text("PRAGMA foreign_keys=ON"))
-    return _engine
-
-
-@pytest.fixture
-def session(engine: _sa.Engine):
-    FastAdminBase.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    return Session()
-
-
-@pytest.fixture
-def user(session: Session):
-    user = User(id=1, name="John Doe", age=30)
-    session.add(user)
-    session.commit()
-    return user
-
-
-@pytest.fixture
-def post(user: User, session: Session):
-    post = Post(
-        id=1, title="First Post", content="This is the first post", user_id=user.id
-    )
-    session.add(post)
-    session.commit()
-    return post
-
-
-@pytest.fixture
-def comment(post: Post, user: User, session: Session):
-    comment = Comment.insert().values(
-        id=1, content="Nice post!", post_id=post.id, user_id=user.id
-    )
-    session.execute(comment)
-    session.commit()
-    return comment
 
 
 def test_as_pydantic_model():
@@ -143,6 +67,8 @@ def test_delete_user(session: Session):
     user = User(id=1, name="John Doe", age=30)
     session.add(user)
     session.commit()
+
+    assert session.query(User).filter_by(id=1).first() is not None
 
     session.delete(user)
     session.commit()

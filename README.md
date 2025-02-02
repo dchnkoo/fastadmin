@@ -13,7 +13,7 @@
 
 ## How It Works
 
-1. **SQLAlchemy Tables**: Define your database models using **FastAdminBase** and **FastColumn** or **fastadmin_mapped_column**.
+1. **SQLAlchemy Tables**: Define your database models using **FastBase** and **FastColumn** or **fastadmin_mapped_column**.
 2. **Conversion to Pydantic Models**: The framework automatically generates Pydantic models for each table, enabling data validation.
 3. **FastUI Integration**: SQLAlchemy tables and Pydantic models are converted into React components using FastUI, allowing you to create an admin interface without manually writing React code.
 4. **Pre-configured FastAPI Routers**: Pre-configured routes for the admin panel allow you to quickly deploy the interface in your application.

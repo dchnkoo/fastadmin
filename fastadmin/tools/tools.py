@@ -671,7 +671,7 @@ def fastadmin_mapped_column[_T](
     )
 
 
-class FastAdminBase(_declarative):  # type: ignore
+class FastBase(_declarative):  # type: ignore
     if _t.TYPE_CHECKING:
         __table__: FastAdminTable
 
@@ -742,7 +742,12 @@ class FastAdminBase(_declarative):  # type: ignore
 
         for name, column in info.foregin_colummns.items():
             foregin_key = column.foreign_keys.pop()
-            table = foregin_key.constraint.referred_table
+            constraint = foregin_key.constraint
+
+            if constraint is None:
+                continue
+
+            table = constraint.referred_table
             yield name, table
 
     @classmethod

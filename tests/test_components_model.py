@@ -1,5 +1,5 @@
 from fastadmin.tools.components import BaseModelComponents
-from fastadmin import FastAdminBase, FastColumn
+from fastadmin import FastBase, FastColumn
 
 from fastui import components as _c
 
@@ -11,7 +11,7 @@ class BaseTestModel(BaseModelComponents):
     name: str
 
 
-class BaseFastTestModel(FastAdminBase):
+class BaseFastTestModel(FastBase):
     __tablename__ = "test_base_model"
 
     id = FastColumn(_sa.Integer, primary_key=True)
