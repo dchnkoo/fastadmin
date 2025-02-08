@@ -103,7 +103,8 @@ class Page(InheritanceTracker):
             if issubclass(cls, pages[cls.uri]) is False:
                 raise ValueError(
                     f"URI `{cls.uri}` is already used by `{pages[cls.uri].__name__}`"
-                    f" if you want to use the same URI, please inherit from `{pages[cls.uri].__name__}`"
+                    " if you want to use the same URI, "
+                    f"please inherit from `{pages[cls.uri].__name__}`"
                 )
 
         cls._set_page()
@@ -168,7 +169,8 @@ class Page(InheritanceTracker):
 
         if return_annotation not in ALLOWED_RESPONSES:
             raise ValueError(
-                f"Page `render` method must return one of {ALLOWED_RESPONSES} ({cls.__name__})"
+                "Page `render` method "
+                f"must return one of {ALLOWED_RESPONSES} ({cls.__name__})"
             )
 
         return return_annotation

@@ -64,7 +64,8 @@ class BaseModelComponents(_p.BaseModel):
         **dump_kwds,
     ) -> components.ModelForm:
         """
-        Create a ModelForm component from the model instance with initial data from the instance.
+        Create a ModelForm component
+        from the model instance with initial data from the instance.
         """
         return components.ModelForm(
             submit_url=submit_url,

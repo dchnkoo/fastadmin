@@ -71,7 +71,8 @@ class InheritanceTracker:
 
         if same_inheritance_counter > 1:
             raise ValueError(
-                f"Multiple inheritance with {InheritanceTracker} object is not allowed ({cls.__name__})"
+                "Multiple inheritance with InheritanceTracker object "
+                f"is not allowed ({cls.__name__})"
             )
 
         return parent

@@ -114,7 +114,9 @@ class ConnectionManager(metaclass=ConnectionMeta):
                     await conn.close()
 
 
-def connection(func=None, *, close_after: bool = True, commit: bool = False):
+def connection[_F](
+    func: _F | None = None, *, close_after: bool = True, commit: bool = False
+) -> _F:
     def decorator(func):
         def wrapper(*args, **kwds):
             conn_manager = ConnectionManager()
@@ -128,7 +130,9 @@ def connection(func=None, *, close_after: bool = True, commit: bool = False):
     return decorator(func) if callable(func) else decorator
 
 
-def aconnection(func=None, *, close_after: bool = True, commit: bool = False):
+def aconnection[_F](
+    func: _F | None = None, *, close_after: bool = True, commit: bool = False
+) -> _F:
     def decorator(func):
         async def wrapper(*args, **kwds):
             conn_manager = ConnectionManager()
@@ -139,4 +143,4 @@ def aconnection(func=None, *, close_after: bool = True, commit: bool = False):
 
         return wrapper
 
-    return decorator(func) if func else decorator
+    return decorator(func) if callable(func) else decorator
