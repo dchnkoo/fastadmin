@@ -1,20 +1,19 @@
-from fastui import (
-    class_name as _cs,
-    components as _c,
-    events as _e,
-    types,
-)
-
-import pydantic as _p
 import typing as _t
 
+import pydantic as _p
+from fastui import (
+    class_name,
+    components,
+    events,
+    types,
+)
 
 _T = _t.TypeVar("_T")
 
 
 if _t.TYPE_CHECKING:
 
-    class CustomizedTable(_c.Table, _t.Generic[_T]):
+    class CustomizedTable(components.Table, _t.Generic[_T]):
         data: _t.Sequence[_p.SerializeAsAny[_T]]
         data_model: _t.Union[_t.Type[_T], None] = _p.Field(default=None, exclude=True)
 
@@ -31,15 +30,15 @@ class BaseModelComponents(_p.BaseModel):
         method: _t.Literal["POST", "GOTO", "GET"] = "POST",
         display_mode: _t.Literal["default", "page", "inline"] | None = None,
         submit_on_change: bool | None = None,
-        submit_trigger: _e.PageEvent | None = None,
-        loading: _t.List[_c.AnyComponent] | None = None,
-        footer: _t.List[_c.AnyComponent] | None = None,
-        class_name: _cs.ClassNameField | None = None,
-    ) -> _c.ModelForm:
+        submit_trigger: events.PageEvent | None = None,
+        loading: _t.List[components.AnyComponent] | None = None,
+        footer: _t.List[components.AnyComponent] | None = None,
+        class_name: class_name.ClassNameField | None = None,
+    ) -> components.ModelForm:
         """
         Use this method to create a ModelForm component from a Pydantic model.
         """
-        return _c.ModelForm(
+        return components.ModelForm(
             submit_url=submit_url,
             initial=initial_data,
             method=method,
@@ -58,16 +57,16 @@ class BaseModelComponents(_p.BaseModel):
         method: _t.Literal["POST", "GOTO", "GET"] = "POST",
         display_mode: _t.Literal["default", "page", "inline"] | None = None,
         submit_on_change: bool | None = None,
-        submit_trigger: _e.PageEvent | None = None,
-        loading: _t.List[_c.AnyComponent] | None = None,
-        footer: _t.List[_c.AnyComponent] | None = None,
-        class_name: _cs.ClassNameField | None = None,
+        submit_trigger: events.PageEvent | None = None,
+        loading: _t.List[components.AnyComponent] | None = None,
+        footer: _t.List[components.AnyComponent] | None = None,
+        class_name: class_name.ClassNameField | None = None,
         **dump_kwds,
-    ) -> _c.ModelForm:
+    ) -> components.ModelForm:
         """
         Create a ModelForm component from the model instance with initial data from the instance.
         """
-        return _c.ModelForm(
+        return components.ModelForm(
             submit_url=submit_url,
             initial=self.model_dump(**dump_kwds),
             method=method,
@@ -84,16 +83,16 @@ class BaseModelComponents(_p.BaseModel):
     def as_model_modal_form(
         cls,
         title: str,
-        footer: _t.List[_c.AnyComponent] | None = None,
-        open_trigger: _e.PageEvent | None = None,
-        open_context: _e.ContextType | None = None,
-        class_name: _cs.ClassNameField = None,
+        footer: _t.List[components.AnyComponent] | None = None,
+        open_trigger: events.PageEvent | None = None,
+        open_context: events.ContextType | None = None,
+        class_name: class_name.ClassNameField = None,
         **form_kwds: _t.Dict[str, _t.Any],
-    ) -> _c.Modal:
+    ) -> components.Modal:
         """
         Use this method to create a Modal component with a ModelForm inside.
         """
-        return _c.Modal(
+        return components.Modal(
             title=title,
             body=[cls.as_model_form(**form_kwds)],
             footer=footer,
@@ -105,16 +104,16 @@ class BaseModelComponents(_p.BaseModel):
     def as_modal_form(
         self,
         title: str,
-        footer: _t.List[_c.AnyComponent] | None = None,
-        open_trigger: _e.PageEvent | None = None,
-        open_context: _e.ContextType | None = None,
-        class_name: _cs.ClassNameField = None,
+        footer: _t.List[components.AnyComponent] | None = None,
+        open_trigger: events.PageEvent | None = None,
+        open_context: events.ContextType | None = None,
+        class_name: class_name.ClassNameField = None,
         **form_kwds: _t.Dict[str, _t.Any],
-    ) -> _c.Modal:
+    ) -> components.Modal:
         """
         Create a Modal component with a ModelForm inside.
         """
-        return _c.Modal(
+        return components.Modal(
             title=title,
             body=[self.as_form(**form_kwds)],
             footer=footer,
@@ -125,13 +124,14 @@ class BaseModelComponents(_p.BaseModel):
 
     def as_details(
         self,
-        fields: _t.List[_c.display.DisplayLookup | _c.display.Display] | None = None,
-        class_name: _cs.ClassNameField | None = None,
-    ) -> _c.Details:
+        fields: _t.List[components.display.DisplayLookup | components.display.Display]
+        | None = None,
+        class_name: class_name.ClassNameField | None = None,
+    ) -> components.Details:
         """
         Create a Details component from the model instance.
         """
-        return _c.Details(
+        return components.Details(
             data=self,
             fields=fields,
             class_name=class_name,
@@ -141,14 +141,14 @@ class BaseModelComponents(_p.BaseModel):
     def as_model_table(
         cls,
         data: _t.Sequence[_t.Union[_T, _t.Self, dict]],
-        columns: _t.List[_c.display.DisplayLookup] | None = None,
+        columns: _t.List[components.display.DisplayLookup] | None = None,
         no_data_message: str | None = None,
-        class_name: _cs.ClassNameField | None = None,
+        class_name: class_name.ClassNameField | None = None,
     ) -> "CustomizedTable[_T | _t.Self]":
         """
         Use this method to create a Table component from a Pydantic model.
         """
-        from .tools import FastBase, FastAdminTable
+        from .tools import FastAdminTable, FastBase
 
         to_table = []
 
@@ -161,7 +161,7 @@ class BaseModelComponents(_p.BaseModel):
             else:
                 to_table.append(item)
 
-        return _c.Table(
+        return components.Table(
             data=to_table,
             data_model=cls,
             columns=columns,

@@ -1,17 +1,17 @@
-from .tracker import InheritanceTracker
-
-from sqlalchemy.util import FacadeDict
-
-from fastui import AnyComponent, components, events, auth as _auth
+import enum
+import inspect
+import typing as _t
 
 from fastapi import responses
+from fastui import AnyComponent, components, events
+from fastui import auth as _auth
+from sqlalchemy.util import FacadeDict
 
-import typing as _t
-import inspect
-import enum
+from .tracker import InheritanceTracker
 
 if _t.TYPE_CHECKING:
     from starlette.templating import _TemplateResponse
+
     from .tools import FastAdminTable
 
 

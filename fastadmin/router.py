@@ -1,19 +1,18 @@
+import typing as _t
+from functools import partial
+
+import fastapi as _fa
 from fastui import AnyComponent, FastUI, prebuilt_html
 
+from .config import PATH_STRIP, ROOT_URL
 from .tools import (
     FastAdminTable,
 )
 
-from .config import ROOT_URL, PATH_STRIP
-
-from functools import partial
-
-import fastapi as _fa
-import typing as _t
-
 if _t.TYPE_CHECKING:
-    from .tools import PageMeta, Page
     import sqlalchemy as _sa
+
+    from .tools import Page, PageMeta
 
 
 FastUIMetadata: _t.TypeAlias = "_sa.MetaData"
@@ -27,13 +26,15 @@ class FastUIRouter(_fa.FastAPI):
         root_url: str = ROOT_URL,
         path_mode: _t.Literal["append", "query"] | None = None,
         path_strip: str = PATH_STRIP,
+        init_prebuilt: bool = True,
         **fastapi_kwds,
     ):
         super(FastUIRouter, self).__init__(**fastapi_kwds)
 
         self.metadata = metadata
-        page_meta.root_url = root_url
-        page_meta.path_strip = path_strip
+        if init_prebuilt:
+            page_meta.root_url = root_url
+            page_meta.path_strip = path_strip
         self.__validate_fast_metadata__()
 
         self.page_meta = page_meta
@@ -43,7 +44,8 @@ class FastUIRouter(_fa.FastAPI):
         self.mount(root_url, routes)
 
         self._path_mode = path_mode
-        self.__init_prebuilt__()
+        if init_prebuilt:
+            self.__init_prebuilt__()
 
     @property
     def pages(self) -> _t.Dict[str, type["Page"]]:

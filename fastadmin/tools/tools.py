@@ -1,30 +1,30 @@
+import typing as _t
+
+import pydantic as _p
 import pydantic.dataclasses as dataclasses
 import pydantic.fields as _pf
-import pydantic as _p
-
 import pydantic_core as _pc
-
-from sqlalchemy.orm.interfaces import _AttributeOptions
+import sqlalchemy as _sa
 from sqlalchemy.orm import (
     DeclarativeBase as _declarative,
-    declared_attr,
-    MappedColumn,
 )
+from sqlalchemy.orm import (
+    MappedColumn,
+    declared_attr,
+)
+from sqlalchemy.orm.interfaces import _AttributeOptions
+from sqlalchemy.sql import sqltypes
 from sqlalchemy.sql.base import (
-    ReadOnlyColumnCollection,
     DedupeColumnCollection,
+    ReadOnlyColumnCollection,
 )
 from sqlalchemy.sql.schema import (
+    SchemaConst,
     _ServerDefaultArgument,
     _ServerOnUpdateArgument,
-    SchemaConst,
 )
-from sqlalchemy.sql import sqltypes
-import sqlalchemy as _sa
 
 from .components import BaseModelComponents
-
-import typing as _t
 
 
 class FastAdminTable(_sa.Table):  # type: ignore
