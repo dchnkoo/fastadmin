@@ -18,16 +18,10 @@ class InheritanceTracker:
     def _check_alias(
         cls, alias: str | None, parent: type["InheritanceTracker"] | None
     ) -> None:
-        if parent is None and alias is None:
-            return
-
         if parent is None and alias is not None:
             raise ValueError(
                 f"You cannot set alias without parent class ({cls.__name__})"
             )
-
-        if parent is not None and alias is None:
-            return
 
         if parent is not None and alias is not None:
             if hasattr(parent, alias):
